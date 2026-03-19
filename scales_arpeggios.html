@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scales & Arpeggios — Wind & Brass</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/soundfont-player/dist/soundfont-player.min.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo-text">Scales & Arpeggios</div>
+    <div class="logo-sub">Wind & Brass — Advanced Reference</div>
+  </div>
+  <div class="badge">Advanced</div>
+</header>
+
+<main>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>Root Note</label>
+      <select id="rootSelect">
+        <option value="C">C</option>
+        <option value="C#/Db">C# / D♭</option>
+        <option value="D">D</option>
+        <option value="D#/Eb">D# / E♭</option>
+        <option value="E">E</option>
+        <option value="F">F</option>
+        <option value="F#/Gb">F# / G♭</option>
+        <option value="G">G</option>
+        <option value="G#/Ab">G# / A♭</option>
+        <option value="A">A</option>
+        <option value="A#/Bb">A# / B♭</option>
+        <option value="B">B</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Scale Type</label>
+      <select id="scaleTypeSelect">
+        <option value="major">Major</option>
+        <option value="natural_minor">Natural Minor</option>
+        <option value="harmonic_minor">Harmonic Minor</option>
+        <option value="melodic_minor">Melodic Minor</option>
+        <option value="dorian">Dorian</option>
+        <option value="mixolydian">Mixolydian</option>
+        <option value="lydian">Lydian</option>
+        <option value="phrygian">Phrygian</option>
+        <option value="whole_tone">Whole Tone</option>
+        <option value="diminished">Diminished (Half-Whole)</option>
+        <option value="chromatic">Chromatic</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Instrument Transposition</label>
+      <select id="transposeSelect">
+        <option value="0">Concert Pitch (C)</option>
+        <option value="-2">B♭ Instruments (Trumpet, Clarinet, Tenor Sax)</option>
+        <option value="-9">E♭ Instruments (Alto Sax, E♭ Clarinet)</option>
+        <option value="-7">F Instruments (French Horn)</option>
+      </select>
+      <div id="audioStatus" class="audio-status">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Main panel -->
+  <div class="display-panel">
+    <div class="scale-header">
+      <div>
+        <div class="scale-name" id="scaleName">C Major</div>
+        <div style="font-size:0.7rem; color:var(--muted); margin-top:0.2rem;" id="enharmonicNote"></div>
+      </div>
+      <div class="scale-type-badge badge-major" id="scaleBadge">Major</div>
+    </div>
+
+    <!-- Notes row with intervals -->
+    <div style="margin-bottom:1rem;">
+      <div style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.6rem;">Scale Degrees</div>
+      <div class="notes-row" id="notesRow"></div>
+    </div>
+
+    <!-- Interval formula -->
+    <div style="margin-bottom:0.5rem;">
+      <div style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;">Interval Formula</div>
+      <div id="intervalFormula" style="font-family:'DM Mono';font-size:0.78rem;color:var(--gold);letter-spacing:0.08em;"></div>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-card-label">Key Signature</div>
+        <div class="info-card-value" id="keySignature">—</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-label">Relative Key</div>
+        <div class="info-card-value" id="relativeKey">—</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-label">Common Use</div>
+        <div class="info-card-value" id="commonUse">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="arpeggio">Arpeggios</button>
+    <button class="tab-btn" data-tab="practice">Practice Tips</button>
+    <button class="tab-btn" data-tab="technique">Technique Notes</button>
+    <button class="tab-btn" data-tab="patterns">Patterns</button>
+  </div>
+
+  <!-- Tab: Arpeggio -->
+  <div class="tab-panel active" id="tab-arpeggio">
+    <div style="margin-bottom:1rem;">
+      <div style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;">Triad Arpeggio</div>
+      <div class="arpeggio-display" id="triadArp"></div>
+    </div>
+    <div>
+      <div style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;">7th Chord Arpeggio</div>
+      <div class="arpeggio-display" id="seventhArp"></div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--gold)"></div> Root</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent-green); opacity:0.7"></div> 3rd</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent-blue); opacity:0.7"></div> 5th</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent-red); opacity:0.7"></div> 7th</div>
+      <div class="legend-item"><div class="legend-dot" style="background:transparent; border: 1.5px dashed var(--gold-dim); width:0.7rem; height:0.7rem; border-radius:50%; display:inline-block;"></div> Octave</div>
+    </div>
+  </div>
+
+  <!-- Tab: Practice -->
+  <div class="tab-panel" id="tab-practice">
+    <ul class="tips-list" id="practiceTips"></ul>
+  </div>
+
+  <!-- Tab: Technique -->
+  <div class="tab-panel" id="tab-technique">
+    <div class="fingering-note" id="techniqueNotes"></div>
+  </div>
+
+  <!-- Tab: Patterns -->
+  <div class="tab-panel" id="tab-patterns">
+    <div id="patternsContent"></div>
+  </div>
+
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
