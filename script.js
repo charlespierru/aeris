@@ -68,7 +68,7 @@ async function ensureInstrumentLoaded() {
 function playNote(midi) {
   if (!currentInstrument) return;
   while (midi < 48) midi += 12;   // keep in C3–C6 window
-  while (midi > 84) midi -= 12;
+  while (midi > 96) midi -= 12;
   const ac = getAudioCtx();
   currentInstrument.play(midiToName(midi), ac.currentTime, { duration: 1.4, gain: 2 });
 }
@@ -96,6 +96,47 @@ window.addEventListener('load', () => { ensureInstrumentLoaded(); });
 const NOTES_SHARP = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const NOTES_FLAT  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
 const DISPLAY_NOTES = ['C','C#/Db','D','D#/Eb','E','F','F#/Gb','G','G#/Ab','A','A#/Bb','B'];
+
+// ─── Diatonic spelling ────────────────────────────────────────────────────────
+// Letter names and their natural (no accidental) semitone values
+const LETTER_NAMES     = ['C','D','E','F','G','A','B'];
+const LETTER_CHROMATIC = [0, 2, 4, 5, 7, 9, 11];
+
+// Preferred root-letter index (0–6 → C…B) for each display-note name.
+// Ambiguous enharmonics: C#/Db → Db (5 flats, simpler); F#/Gb → F# (conventional).
+const ROOT_LETTER_IDX = {
+  'C':0, 'C#':0, 'Db':1,
+  'D':1, 'D#':1, 'Eb':2,
+  'E':2, 'F':3,
+  'F#':3, 'Gb':4,
+  'G':4, 'G#':4, 'Ab':5,
+  'A':5, 'A#':5, 'Bb':6,
+  'B':6
+};
+
+// Scale types that obey the 7-letter diatonic rule (one letter per degree).
+// Symmetric scales (chromatic, whole_tone, diminished) keep DISPLAY_NOTES notation.
+const DIATONIC_SCALES = new Set([
+  'major','natural_minor','harmonic_minor','melodic_minor',
+  'dorian','mixolydian','lydian','phrygian'
+]);
+
+// Convert a chromatic pitch class (0–11) to a note name given a letter index.
+// letterIdx wraps mod 7; accidental is computed as the chromatic distance from
+// the natural pitch of that letter.
+function spellNote(chromatic, letterIdx) {
+  const li  = ((letterIdx % 7) + 7) % 7;
+  const nat = LETTER_CHROMATIC[li];
+  let acc   = ((chromatic - nat) % 12 + 12) % 12;
+  if (acc > 6) acc -= 12;   // prefer ♭ (-1) over the equivalent +11 reading
+  const base = LETTER_NAMES[li];
+  if (acc ===  0) return base;
+  if (acc ===  1) return base + '#';
+  if (acc === -1) return base + 'b';
+  if (acc ===  2) return base + '\u00D7';     // × double sharp
+  if (acc === -2) return base + '\u266D\u266D'; // ♭♭ double flat
+  return base; // shouldn't occur in standard scale intervals
+}
 
 const SCALE_DEFS = {
   major: {
@@ -332,18 +373,47 @@ const SCALE_DEFS = {
 };
 
 const KEY_SIGS = {
-  C: '0 sharps/flats', 'C#/Db': '7 sharps / 5 flats', D: '2 sharps', 'D#/Eb': '3 flats',
-  E: '4 sharps', F: '1 flat', 'F#/Gb': '6 sharps / 6 flats', G: '1 sharp',
-  'G#/Ab': '4 flats', A: '3 sharps', 'A#/Bb': '2 flats', B: '5 sharps'
+  'C':'0 sharps/flats',
+  'C#':'7 sharps', 'Db':'5 flats',
+  'D':'2 sharps',
+  'D#':'9 sharps', 'Eb':'3 flats',
+  'E':'4 sharps', 'F':'1 flat',
+  'F#':'6 sharps', 'Gb':'6 flats',
+  'G':'1 sharp',
+  'G#':'8 sharps', 'Ab':'4 flats',
+  'A':'3 sharps',
+  'A#':'10 sharps', 'Bb':'2 flats',
+  'B':'5 sharps'
 };
 
-const RELATIVE_MINORS = { C:'A', 'C#/Db':'A#/Bb', D:'B', 'D#/Eb':'C', E:'C#/Db', F:'D', 'F#/Gb':'D#/Eb', G:'E', 'G#/Ab':'F', A:'F#/Gb', 'A#/Bb':'G', B:'G#/Ab' };
-const RELATIVE_MAJORS = { A:'C', 'A#/Bb':'C#/Db', B:'D', C:'D#/Eb', 'C#/Db':'E', D:'F', 'D#/Eb':'F#/Gb', E:'G', F:'G#/Ab', 'F#/Gb':'A', G:'A#/Bb', 'G#/Ab':'B' };
+const RELATIVE_MINORS = {
+  'C':'A',  'C#':'A#', 'Db':'Bb',
+  'D':'B',  'D#':'B#', 'Eb':'C',
+  'E':'C#', 'F':'D',
+  'F#':'D#', 'Gb':'Eb',
+  'G':'E',  'G#':'E#', 'Ab':'F',
+  'A':'F#', 'A#':'F\u00D7', 'Bb':'G',
+  'B':'G#'
+};
+
+const RELATIVE_MAJORS = {
+  'A':'C',  'A#':'C#', 'Bb':'Db',
+  'B':'D',  'B#':'D#', 'C':'Eb',
+  'C#':'E', 'D':'F',
+  'D#':'F#', 'Eb':'Gb',
+  'E':'G',  'E#':'G#', 'F':'Ab',
+  'F#':'A', 'G':'Bb',
+  'G#':'B'
+};
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function getRootIndex(root) {
-  return DISPLAY_NOTES.indexOf(root);
+  const map = {
+    'C':0,'C#':1,'Db':1,'D':2,'D#':3,'Eb':3,'E':4,'F':5,
+    'F#':6,'Gb':6,'G':7,'G#':8,'Ab':8,'A':9,'A#':10,'Bb':10,'B':11
+  };
+  return map[root] ?? 0;
 }
 
 // Returns an array of semitone offsets from root, one per scale note, ending with 12 (octave).
@@ -359,15 +429,27 @@ function getCumulativeOffsets(intervals) {
   return out;
 }
 
-function buildScaleNotes(rootIdx, intervals) {
+function buildScaleNotes(rootIdx, intervals, rootLetterIdx) {
   const notes = [];
-  let idx = rootIdx;
-  notes.push(DISPLAY_NOTES[idx % 12]);
-  for (let i = 0; i < intervals.length - 1; i++) {
-    idx += intervals[i];
+  if (rootLetterIdx !== undefined) {
+    // Diatonic path — each degree gets the correct letter + accidental
+    let chromOffset = 0;
+    notes.push(spellNote(rootIdx, rootLetterIdx));
+    for (let i = 0; i < intervals.length - 1; i++) {
+      chromOffset += intervals[i];
+      notes.push(spellNote((rootIdx + chromOffset) % 12, rootLetterIdx + i + 1));
+    }
+    notes.push(spellNote(rootIdx, rootLetterIdx) + '\'');
+  } else {
+    // Non-diatonic path — keep existing DISPLAY_NOTES behaviour
+    let idx = rootIdx;
     notes.push(DISPLAY_NOTES[idx % 12]);
+    for (let i = 0; i < intervals.length - 1; i++) {
+      idx += intervals[i];
+      notes.push(DISPLAY_NOTES[idx % 12]);
+    }
+    notes.push(DISPLAY_NOTES[rootIdx % 12] + '\'');
   }
-  notes.push(DISPLAY_NOTES[rootIdx % 12] + '\'');
   return notes;
 }
 
@@ -412,8 +494,11 @@ function render() {
   }
   document.getElementById('commonUse').textContent = def.use;
 
+  // Diatonic scales get correct letter-per-degree spelling; symmetric scales keep DISPLAY_NOTES
+  const rootLetterIdx = DIATONIC_SCALES.has(scaleType) ? ROOT_LETTER_IDX[root] : undefined;
+
   // Build notes
-  const scaleNotes = buildScaleNotes(rootIdx, def.intervals);
+  const scaleNotes = buildScaleNotes(rootIdx, def.intervals, rootLetterIdx);
   const degrees = def.degrees;
 
   // Notes row
@@ -449,8 +534,14 @@ function render() {
   // Arpeggio — triad
   const triadSemitones = getArpSemitones(scaleType, 'triad');
   const seventhSemitones = getArpSemitones(scaleType, 'seventh');
-  renderArp('triadArp',   rootIdx, triadSemitones,   ['root-c','third-c','fifth-c','octave-c'],           ['R','3rd','5th','8va'],       baseMidi);
-  renderArp('seventhArp', rootIdx, seventhSemitones, ['root-c','third-c','fifth-c','seventh-c','octave-c'], ['R','3rd','5th','7th','8va'], baseMidi);
+  const ninthSemitones     = getArpSemitones(scaleType, 'ninth');
+  const eleventhSemitones  = getArpSemitones(scaleType, 'eleventh');
+  const thirteenthSemitones = getArpSemitones(scaleType, 'thirteenth');
+  renderArp('triadArp',      rootIdx, triadSemitones,      ['root-c','third-c','fifth-c'],                                       ['R','3rd','5th'],                baseMidi, rootLetterIdx);
+  renderArp('seventhArp',    rootIdx, seventhSemitones,    ['root-c','third-c','fifth-c','seventh-c'],                           ['R','3rd','5th','7th'],          baseMidi, rootLetterIdx);
+  renderArp('ninthArp',      rootIdx, ninthSemitones,      ['root-c','third-c','fifth-c','seventh-c','ninth-c'],                 ['R','3rd','5th','7th','9th'],    baseMidi, rootLetterIdx);
+  renderArp('eleventhArp',   rootIdx, eleventhSemitones,   ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c'],    ['R','3rd','5th','7th','9th','11th'],  baseMidi, rootLetterIdx);
+  renderArp('thirteenthArp', rootIdx, thirteenthSemitones, ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c','thirteenth-c'], ['R','3rd','5th','7th','9th','11th','13th'], baseMidi, rootLetterIdx);
 
   // Practice tips
   const tipsList = document.getElementById('practiceTips');
@@ -477,27 +568,36 @@ function render() {
 
 function getArpSemitones(scaleType, type) {
   const maps = {
-    major:          { triad: [0,4,7,12],   seventh: [0,4,7,11,12] },
-    natural_minor:  { triad: [0,3,7,12],   seventh: [0,3,7,10,12] },
-    harmonic_minor: { triad: [0,3,7,12],   seventh: [0,3,7,11,12] },
-    melodic_minor:  { triad: [0,3,7,12],   seventh: [0,3,7,11,12] },
-    dorian:         { triad: [0,3,7,12],   seventh: [0,3,7,10,12] },
-    mixolydian:     { triad: [0,4,7,12],   seventh: [0,4,7,10,12] },
-    lydian:         { triad: [0,4,7,12],   seventh: [0,4,7,11,12] },
-    phrygian:       { triad: [0,3,7,12],   seventh: [0,3,7,10,12] },
-    whole_tone:     { triad: [0,4,8,12],   seventh: [0,4,8,10,12] },
-    diminished:     { triad: [0,3,6,12],   seventh: [0,3,6,9,12]  },
-    chromatic:      { triad: [0,4,7,12],   seventh: [0,4,7,11,12] },
+    //                triad       seventh          ninth              eleventh               thirteenth
+    major:          { triad:[0,4,7],   seventh:[0,4,7,11],   ninth:[0,4,7,11,14],   eleventh:[0,4,7,11,14,17],   thirteenth:[0,4,7,11,14,17,21] },
+    natural_minor:  { triad:[0,3,7],   seventh:[0,3,7,10],   ninth:[0,3,7,10,14],   eleventh:[0,3,7,10,14,17],   thirteenth:[0,3,7,10,14,17,20] },
+    harmonic_minor: { triad:[0,3,7],   seventh:[0,3,7,11],   ninth:[0,3,7,11,14],   eleventh:[0,3,7,11,14,17],   thirteenth:[0,3,7,11,14,17,20] },
+    melodic_minor:  { triad:[0,3,7],   seventh:[0,3,7,11],   ninth:[0,3,7,11,14],   eleventh:[0,3,7,11,14,17],   thirteenth:[0,3,7,11,14,17,21] },
+    dorian:         { triad:[0,3,7],   seventh:[0,3,7,10],   ninth:[0,3,7,10,14],   eleventh:[0,3,7,10,14,17],   thirteenth:[0,3,7,10,14,17,21] },
+    mixolydian:     { triad:[0,4,7],   seventh:[0,4,7,10],   ninth:[0,4,7,10,14],   eleventh:[0,4,7,10,14,17],   thirteenth:[0,4,7,10,14,17,21] },
+    lydian:         { triad:[0,4,7],   seventh:[0,4,7,11],   ninth:[0,4,7,11,14],   eleventh:[0,4,7,11,14,18],   thirteenth:[0,4,7,11,14,18,21] },
+    phrygian:       { triad:[0,3,7],   seventh:[0,3,7,10],   ninth:[0,3,7,10,13],   eleventh:[0,3,7,10,13,17],   thirteenth:[0,3,7,10,13,17,20] },
+    whole_tone:     { triad:[0,4,8],   seventh:[0,4,8,10],   ninth:[0,4,8,10,14],   eleventh:[0,4,8,10,14,18],   thirteenth:[0,4,8,10,14,18,22] },
+    diminished:     { triad:[0,3,6],   seventh:[0,3,6,9],    ninth:[0,3,6,9,13],    eleventh:[0,3,6,9,13,17],    thirteenth:[0,3,6,9,13,17,21]  },
+    chromatic:      { triad:[0,4,7],   seventh:[0,4,7,11],   ninth:[0,4,7,11,14],   eleventh:[0,4,7,11,14,17],   thirteenth:[0,4,7,11,14,17,21] },
   };
   return (maps[scaleType] || maps.major)[type];
 }
 
-function renderArp(id, rootIdx, semitones, classes, labels, baseMidi) {
+function renderArp(id, rootIdx, semitones, classes, labels, baseMidi, rootLetterIdx) {
+  // Arpeggio letter offsets: root=+0, 3rd=+2, 5th=+4, 7th=+6, octave=+7(=root)
+  // These are fixed regardless of chord quality — accidentals handle alterations.
+  const ARP_LETTER_OFF = semitones.map((_, i) => i * 2);
   const container = document.getElementById(id);
   container.innerHTML = '';
   semitones.forEach((s, i) => {
-    const noteName = i === semitones.length - 1
-      ? DISPLAY_NOTES[rootIdx % 12] + '\'': DISPLAY_NOTES[(rootIdx + s) % 12];
+    let noteName;
+    if (rootLetterIdx !== undefined) {
+      const chr = (rootIdx + s) % 12;
+      noteName  = spellNote(chr, rootLetterIdx + ARP_LETTER_OFF[i]);
+    } else {
+      noteName = DISPLAY_NOTES[(rootIdx + s) % 12];
+    }
     const block = document.createElement('div');
     block.className = 'arp-note';
     const deg = document.createElement('div');
@@ -540,7 +640,7 @@ document.getElementById('notesRow').addEventListener('click', e => {
   if (pill) handleNoteClick(+pill.dataset.midi, pill);
 });
 
-['triadArp', 'seventhArp'].forEach(id => {
+['triadArp', 'seventhArp', 'ninthArp', 'eleventhArp', 'thirteenthArp'].forEach(id => {
   document.getElementById(id).addEventListener('click', e => {
     const circle = e.target.closest('[data-midi]');
     if (circle) handleNoteClick(+circle.dataset.midi, circle);

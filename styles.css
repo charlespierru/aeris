@@ -399,8 +399,11 @@ svg.staff {
 .arp-circle.root-c { background: var(--gold); color: #0d0d0f; }
 .arp-circle.third-c { background: rgba(90,158,110,0.3); color: var(--accent-green); border: 2px solid rgba(90,158,110,0.5); }
 .arp-circle.fifth-c { background: rgba(74,158,187,0.3); color: var(--accent-blue); border: 2px solid rgba(74,158,187,0.5); }
-.arp-circle.seventh-c { background: rgba(196,91,74,0.3); color: var(--accent-red); border: 2px solid rgba(196,91,74,0.5); }
-.arp-circle.octave-c { background: rgba(201,168,76,0.2); color: var(--gold); border: 2px dashed var(--gold-dim); }
+.arp-circle.seventh-c   { background: rgba(196,91,74,0.3);   color: var(--accent-red);   border: 2px solid rgba(196,91,74,0.5); }
+.arp-circle.ninth-c     { background: rgba(210,130,50,0.3);  color: #e08840;             border: 2px solid rgba(210,130,50,0.5); }
+.arp-circle.eleventh-c  { background: rgba(140,90,200,0.3);  color: #a070e0;             border: 2px solid rgba(140,90,200,0.5); }
+.arp-circle.thirteenth-c{ background: rgba(50,190,180,0.3);  color: #32c0b8;             border: 2px solid rgba(50,190,180,0.5); }
+.arp-circle.octave-c    { background: rgba(201,168,76,0.2);  color: var(--gold);         border: 2px dashed var(--gold-dim); }
 
 .arp-arrow { color: var(--gold-dim); font-size: 1rem; }
 
