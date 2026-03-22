@@ -166,6 +166,7 @@ main {
   margin-bottom: 1.75rem;
 }
 
+
 .scale-name {
   font-size: 2.4rem;
   font-weight: 900;
@@ -177,11 +178,12 @@ main {
 }
 
 .octave-label {
-  font-size: 0.62rem;
-  letter-spacing: 0.1em;
+  font-size: 1.5rem;
+  letter-spacing: 0.08em;
   color: var(--muted);
   flex-shrink: 0;
   font-weight: 400;
+  margin-left: 1.5rem;
 }
 
 #octaveSelect {
