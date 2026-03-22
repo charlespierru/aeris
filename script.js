@@ -11,6 +11,7 @@ const TRANSPOSE_INSTRUMENT = {
 let audioCtx = null;
 let currentInstrument = null;
 const instrumentCache = {};
+let rootOctave = 4;     // octave écrit de la note fondamentale (2, 3 ou 4)
 
 function getInstrument() {
   const val = document.getElementById('transposeSelect').value;
@@ -67,8 +68,8 @@ async function ensureInstrumentLoaded() {
 
 function playNote(midi) {
   if (!currentInstrument) return;
-  while (midi < 48) midi += 12;   // keep in C3–C6 window
-  while (midi > 96) midi -= 12;
+  while (midi < 45) midi += 12;   // plancher : A2
+  while (midi > 96) midi -= 12;   // plafond : C7
   const ac = getAudioCtx();
   currentInstrument.play(midiToName(midi), ac.currentTime, { duration: 1.4, gain: 2 });
 }
@@ -82,7 +83,7 @@ function flashNote(el) {
 
 async function handleNoteClick(midi, el) {
   await ensureInstrumentLoaded();
-  playNote(midi);
+  playNote(midi);   // baseMidi intègre déjà rootOctave
   flashNote(el);
 }
 
@@ -459,6 +460,19 @@ function getNoteAt(rootIdx, semitones) {
 
 // ─── Rendering ────────────────────────────────────────────────────────────────
 
+// Retourne les octaves ÉCRITS valides pour la root donnée.
+// Ambitus : A2 (MIDI 45) – Eb5 (MIDI 75) pour le concert de la root,
+// afin que la 13e (max +21 st) reste dans l'ambitus C7 (MIDI 96).
+function getValidOctaves(rootIdx, transposeOffset) {
+  const MIN = 45, MAX = 75;   // A2 – Eb5 (root max = C7 − 21 st)
+  const result = [];
+  for (let oct = 2; oct <= 5; oct++) {
+    const m = 12 * (oct + 1) + rootIdx + transposeOffset;
+    if (m >= MIN && m <= MAX) result.push(oct);
+  }
+  return result;
+}
+
 function render() {
   const root = document.getElementById('rootSelect').value;
   const scaleType = document.getElementById('scaleTypeSelect').value;
@@ -466,14 +480,28 @@ function render() {
   const rootIdx = getRootIndex(root);
 
   // Concert-pitch base MIDI for audio playback.
-  // The displayed notes are written pitch; transposeOffset converts to sounding pitch.
+  // Ambitus : A2 (MIDI 45) – C7 (MIDI 96). Root max = Eb5 (MIDI 75).
   const transposeOffset = parseInt(document.getElementById('transposeSelect').value);
-  const concertRootIdx  = ((rootIdx + transposeOffset) % 12 + 12) % 12;
-  const baseMidi        = 60 + concertRootIdx;   // root in octave 4
-  const offsets         = getCumulativeOffsets(def.intervals);
+  const validOctaves    = getValidOctaves(rootIdx, transposeOffset);
+  if (validOctaves.length && !validOctaves.includes(rootOctave)) {
+    rootOctave = validOctaves[validOctaves.length - 1]; // snapper au plus haut valide
+  }
+  const baseMidi = 12 * (rootOctave + 1) + rootIdx + transposeOffset;
+  const offsets  = getCumulativeOffsets(def.intervals);
+
+  // Reconstruire le sélecteur d'octave
+  const octSel = document.getElementById('octaveSelect');
+  octSel.innerHTML = '';
+  validOctaves.forEach(oct => {
+    const opt = document.createElement('option');
+    opt.value = oct;
+    opt.textContent = root + oct;   // ex : "C4", "Eb3", "A2"
+    opt.selected = (oct === rootOctave);
+    octSel.appendChild(opt);
+  });
 
   // Name and badge
-  document.getElementById('scaleName').textContent = root + ' ' + def.label;
+  document.getElementById('scaleNameText').textContent = root + ' ' + def.label;
   const badge = document.getElementById('scaleBadge');
   badge.textContent = def.label;
   badge.className = 'scale-type-badge ' + def.badgeClass;
@@ -560,8 +588,8 @@ function render() {
   patternsDiv.innerHTML = '';
   def.patterns.forEach(p => {
     const card = document.createElement('div');
-    card.style.cssText = 'background:var(--surface2);border:1px solid rgba(255,255,255,0.05);border-radius:4px;padding:1rem;margin-bottom:0.75rem;';
-    card.innerHTML = `<div style="font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:0.4rem;">${p.name}</div><div style="font-family:'Crimson Pro',serif;font-size:1rem;color:#ccc;line-height:1.5;">${p.desc}</div>`;
+    card.className = 'pattern-card';
+    card.innerHTML = `<div class="pattern-name">${p.name}</div><div class="pattern-desc">${p.desc}</div>`;
     patternsDiv.appendChild(card);
   });
 }
@@ -663,6 +691,12 @@ document.getElementById('transposeSelect').addEventListener('change', () => {
   // Switch to the instrument that matches the new transposition and pre-load it
   currentInstrument = null;
   ensureInstrumentLoaded();
+  render();
+});
+
+// Sélecteur d'octave
+document.getElementById('octaveSelect').addEventListener('change', e => {
+  rootOctave = parseInt(e.target.value);
   render();
 });
 

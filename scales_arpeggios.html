@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scales & Arpeggios — Wind & Brass</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/soundfont-player/dist/soundfont-player.min.js"></script>
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -75,22 +76,24 @@
   <div class="display-panel">
     <div class="scale-header">
       <div>
-        <div class="scale-name" id="scaleName">C Major</div>
-        <div style="font-size:0.7rem; color:var(--muted); margin-top:0.2rem;" id="enharmonicNote"></div>
+        <div class="scale-name" id="scaleName">
+          <span id="scaleNameText">C Major</span><span class="octave-label">8a</span><select id="octaveSelect" title="Octave de la note fondamentale"></select>
+        </div>
+        <div class="enharmonic-note" id="enharmonicNote"></div>
       </div>
       <div class="scale-type-badge badge-major" id="scaleBadge">Major</div>
     </div>
 
     <!-- Notes row with intervals -->
-    <div style="margin-bottom:1rem;">
-      <div style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.6rem;">Scale Degrees</div>
+    <div style="margin-bottom:1.25rem;">
+      <div class="section-label">Scale Degrees</div>
       <div class="notes-row" id="notesRow"></div>
     </div>
 
     <!-- Interval formula -->
-    <div style="margin-bottom:0.5rem;">
-      <div style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;">Interval Formula</div>
-      <div id="intervalFormula" style="font-family:'DM Mono';font-size:0.78rem;color:var(--gold);letter-spacing:0.08em;"></div>
+    <div style="margin-bottom:0.75rem;">
+      <div class="section-label">Interval Formula</div>
+      <div id="intervalFormula" class="formula-text"></div>
     </div>
 
     <div class="info-grid">
@@ -120,33 +123,33 @@
   <!-- Tab: Arpeggio -->
   <div class="tab-panel active" id="tab-arpeggio">
     <div style="margin-bottom:1rem;">
-      <div style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;">Triad Arpeggio</div>
+      <div class="section-label">Triad Arpeggio</div>
       <div class="arpeggio-display" id="triadArp"></div>
     </div>
-    <div>
-      <div style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;">7th Chord Arpeggio</div>
+    <div style="margin-bottom:1rem;">
+      <div class="section-label">7th Chord Arpeggio</div>
       <div class="arpeggio-display" id="seventhArp"></div>
     </div>
-    <div>
-      <div style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;">9th Chord Arpeggio</div>
+    <div style="margin-bottom:1rem;">
+      <div class="section-label">9th Chord Arpeggio</div>
       <div class="arpeggio-display" id="ninthArp"></div>
     </div>
-    <div>
-      <div style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;">11th Chord Arpeggio</div>
+    <div style="margin-bottom:1rem;">
+      <div class="section-label">11th Chord Arpeggio</div>
       <div class="arpeggio-display" id="eleventhArp"></div>
     </div>
-    <div>
-      <div style="font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;">13th Chord Arpeggio</div>
+    <div style="margin-bottom:1rem;">
+      <div class="section-label">13th Chord Arpeggio</div>
       <div class="arpeggio-display" id="thirteenthArp"></div>
     </div>
     <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:var(--gold)"></div> Root</div>
-      <div class="legend-item"><div class="legend-dot" style="background:var(--accent-green); opacity:0.7"></div> 3rd</div>
-      <div class="legend-item"><div class="legend-dot" style="background:var(--accent-blue); opacity:0.7"></div> 5th</div>
-      <div class="legend-item"><div class="legend-dot" style="background:var(--accent-red); opacity:0.7"></div> 7th</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#e08840; opacity:0.7"></div> 9th</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#a070e0; opacity:0.7"></div> 11th</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#32c0b8; opacity:0.7"></div> 13th</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--violet)"></div> Root</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green); opacity:0.8"></div> 3rd</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--cyan); opacity:0.8"></div> 5th</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--amber); opacity:0.8"></div> 7th</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--orange); opacity:0.8"></div> 9th</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--purple); opacity:0.8"></div> 11th</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--teal); opacity:0.8"></div> 13th</div>
     </div>
   </div>
 
