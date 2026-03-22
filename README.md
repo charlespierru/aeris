@@ -2,6 +2,8 @@
 
 > Wind & Brass advanced scale reference — interactive, audio-playback, zero dependencies.
 
+**[→ Live demo](https://scales-arpeggios.vercel.app)**
+
 ![Dark neon UI with violet accents](https://img.shields.io/badge/design-dark%20neon-7c3aed?style=flat-square) ![Vanilla JS](https://img.shields.io/badge/stack-vanilla%20JS-f3f4f6?style=flat-square) ![No build tools](https://img.shields.io/badge/build-none-22d3ee?style=flat-square)
 
 ## Overview
