@@ -578,6 +578,7 @@ function render() {
   earBtn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('listenModal').classList.add('open'); });
   const earLabel = document.createElement('span');
   earLabel.className = 'interval-label';
+  earLabel.textContent = '\u00A0'; // non-breaking space — same height as other labels
   earBlock.appendChild(earBtn);
   earBlock.appendChild(earLabel);
   notesRow.appendChild(earBlock);
