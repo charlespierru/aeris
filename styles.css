@@ -604,7 +604,6 @@ main {
   background: var(--violet-bg);
   border: 1px solid var(--violet-border);
   color: var(--violet);
-  margin-left: 0.75rem;
   flex-shrink: 0;
   transition: box-shadow 0.2s, transform 0.15s, filter 0.15s;
 }
