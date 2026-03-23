@@ -599,6 +599,88 @@ main {
   line-height: 1.5;
 }
 
+/* ─── Ear button ───────────────────────────────────────────────────────────── */
+.ear-btn {
+  background: var(--violet-bg);
+  border: 1px solid var(--violet-border);
+  color: var(--violet);
+  margin-left: 0.75rem;
+  flex-shrink: 0;
+  transition: box-shadow 0.2s, transform 0.15s, filter 0.15s;
+}
+
+.ear-btn:hover {
+  box-shadow: 0 0 16px var(--violet-glow);
+  transform: scale(1.1);
+  filter: brightness(1.2);
+}
+
+/* ─── Listen modal ─────────────────────────────────────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(7,7,11,0.80);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--subtle);
+  border-top: 2px solid var(--violet-mid);
+  border-radius: 16px;
+  padding: 2rem;
+  width: min(540px, 92vw);
+  position: relative;
+  box-shadow: 0 0 60px rgba(109,40,217,0.2);
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: var(--surface2);
+  border: 1px solid var(--subtle);
+  color: var(--muted);
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.modal-close:hover {
+  color: var(--cream);
+  border-color: var(--violet-dim);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--violet);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 1.5rem;
+}
+
+.modal-body {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
 /* ─── Playing animation ────────────────────────────────────────────────────── */
 @keyframes notePlaying {
   0%   { transform: scale(1);    box-shadow: 0 0 0 0    rgba(167,139,250,0.8); }
