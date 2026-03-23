@@ -589,11 +589,11 @@ function render() {
   const ninthSemitones     = getArpSemitones(scaleType, 'ninth');
   const eleventhSemitones  = getArpSemitones(scaleType, 'eleventh');
   const thirteenthSemitones = getArpSemitones(scaleType, 'thirteenth');
-  renderArp('triadArp',      rootIdx, triadSemitones,      ['root-c','third-c','fifth-c'],                                       ['R','3rd','5th'],                baseMidi, rootLetterIdx);
-  renderArp('seventhArp',    rootIdx, seventhSemitones,    ['root-c','third-c','fifth-c','seventh-c'],                           ['R','3rd','5th','7th'],          baseMidi, rootLetterIdx);
-  renderArp('ninthArp',      rootIdx, ninthSemitones,      ['root-c','third-c','fifth-c','seventh-c','ninth-c'],                 ['R','3rd','5th','7th','9th'],    baseMidi, rootLetterIdx);
-  renderArp('eleventhArp',   rootIdx, eleventhSemitones,   ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c'],    ['R','3rd','5th','7th','9th','11th'],  baseMidi, rootLetterIdx);
-  renderArp('thirteenthArp', rootIdx, thirteenthSemitones, ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c','thirteenth-c'], ['R','3rd','5th','7th','9th','11th','13th'], baseMidi, rootLetterIdx);
+  renderArp('triadArp',      rootIdx, triadSemitones,      ['root-c','third-c','fifth-c'],                                       ['R','3rd','5th'],                baseMidi, rootLetterIdx); appendArpEarBtn('triadArp');
+  renderArp('seventhArp',    rootIdx, seventhSemitones,    ['root-c','third-c','fifth-c','seventh-c'],                           ['R','3rd','5th','7th'],          baseMidi, rootLetterIdx); appendArpEarBtn('seventhArp');
+  renderArp('ninthArp',      rootIdx, ninthSemitones,      ['root-c','third-c','fifth-c','seventh-c','ninth-c'],                 ['R','3rd','5th','7th','9th'],    baseMidi, rootLetterIdx); appendArpEarBtn('ninthArp');
+  renderArp('eleventhArp',   rootIdx, eleventhSemitones,   ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c'],    ['R','3rd','5th','7th','9th','11th'],  baseMidi, rootLetterIdx); appendArpEarBtn('eleventhArp');
+  renderArp('thirteenthArp', rootIdx, thirteenthSemitones, ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c','thirteenth-c'], ['R','3rd','5th','7th','9th','11th','13th'], baseMidi, rootLetterIdx); appendArpEarBtn('thirteenthArp');
 
   // Practice tips
   const tipsList = document.getElementById('practiceTips');
@@ -634,6 +634,31 @@ function getArpSemitones(scaleType, type) {
     chromatic:      { triad:[0,4,7],   seventh:[0,4,7,11],   ninth:[0,4,7,11,14],   eleventh:[0,4,7,11,14,17],   thirteenth:[0,4,7,11,14,17,21] },
   };
   return (maps[scaleType] || maps.major)[type];
+}
+
+function appendArpEarBtn(id) {
+  const container = document.getElementById(id);
+  const arrow = document.createElement('div');
+  arrow.className = 'arp-arrow';
+  arrow.style.marginTop = '1.2rem';
+  arrow.textContent = '→';
+  const note = document.createElement('div');
+  note.className = 'arp-note';
+  const deg = document.createElement('div');
+  deg.className = 'arp-degree';
+  deg.textContent = '\u00A0';
+  const circle = document.createElement('div');
+  circle.className = 'arp-circle ear-btn';
+  circle.setAttribute('role', 'button');
+  circle.setAttribute('tabindex', '0');
+  circle.title = 'Écoute interactive';
+  circle.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 0 1-7 0"/><path d="M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 0 4 0"/></svg>`;
+  circle.addEventListener('click', () => document.getElementById('listenModal').classList.add('open'));
+  circle.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('listenModal').classList.add('open'); });
+  note.appendChild(deg);
+  note.appendChild(circle);
+  container.appendChild(arrow);
+  container.appendChild(note);
 }
 
 function renderArp(id, rootIdx, semitones, classes, labels, baseMidi, rootLetterIdx) {
