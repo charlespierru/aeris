@@ -181,11 +181,37 @@
       <span>Écoute interactive</span>
     </div>
     <div class="modal-body" id="modalBody">
-      <!-- Interactive content à venir -->
+      <div class="dictee-source" id="dicteeSource"></div>
+
+      <div class="dictee-indicator">
+        <div id="dicteeCircle" class="dictee-circle">♪</div>
+      </div>
+
+      <div class="dictee-sliders">
+        <div class="dictee-slider-group">
+          <div class="dictee-slider-header">
+            <span class="dictee-slider-label">Nombre de notes</span>
+            <span class="dictee-slider-val" id="noteCountVal">8</span>
+          </div>
+          <input type="range" id="noteCountSlider" class="dictee-range" min="3" max="16" value="8">
+        </div>
+        <div class="dictee-slider-group">
+          <div class="dictee-slider-header">
+            <span class="dictee-slider-label">Tempo</span>
+            <span class="dictee-slider-val" id="tempoVal">80 BPM</span>
+          </div>
+          <input type="range" id="tempoSlider" class="dictee-range" min="40" max="300" value="80">
+        </div>
+      </div>
+
+      <div class="dictee-actions">
+        <button id="dicteePlayBtn" class="dictee-play-btn">▶  Play</button>
+        <button id="dicteeRevealBtn" class="dictee-reveal-btn">Voir les notes</button>
+      </div>
     </div>
   </div>
 </div>
 
-<script src="script.js?v=5"></script>
+<script src="script.js?v=6"></script>
 </body>
 </html>

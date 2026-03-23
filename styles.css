@@ -690,6 +690,174 @@ main {
 .note-pill.playing  { animation: notePlaying 0.55s ease-out forwards; }
 .arp-circle.playing { animation: notePlaying 0.55s ease-out forwards; }
 
+/* ─── Dictée musicale ──────────────────────────────────────────────────────── */
+.dictee-source {
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.dictee-indicator {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.75rem;
+}
+
+.dictee-circle {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 50%;
+  background: var(--violet-bg);
+  border: 2px solid var(--violet-border);
+  color: var(--violet);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  transition: border-color 0.1s;
+  user-select: none;
+}
+
+@keyframes dicteePulse {
+  0%   { transform: scale(1);    box-shadow: 0 0 0 0    rgba(167,139,250,0.85); }
+  35%  { transform: scale(1.2);  box-shadow: 0 0 0 10px rgba(167,139,250,0.3);  }
+  100% { transform: scale(1);    box-shadow: 0 0 0 24px rgba(167,139,250,0);    }
+}
+
+.dictee-circle.playing {
+  animation: dicteePulse 0.45s ease-out forwards;
+  border-color: var(--violet);
+}
+
+.dictee-sliders {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.dictee-slider-group { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.dictee-slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.dictee-slider-label {
+  font-size: 0.58rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.dictee-slider-val {
+  font-size: 0.78rem;
+  color: var(--violet);
+  font-weight: 600;
+}
+
+.dictee-range {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--surface3);
+  border-radius: 99px;
+  outline: none;
+  cursor: pointer;
+}
+
+.dictee-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--violet);
+  cursor: pointer;
+  box-shadow: 0 0 6px var(--violet-glow);
+  transition: transform 0.15s;
+}
+
+.dictee-range::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+.dictee-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--violet);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 0 6px var(--violet-glow);
+}
+
+.dictee-range::-moz-range-track {
+  background: var(--surface3);
+  height: 4px;
+  border-radius: 99px;
+}
+
+.dictee-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.dictee-play-btn {
+  flex: 1;
+  padding: 0.65rem 1rem;
+  background: var(--violet-mid);
+  border: none;
+  border-radius: 9999px;
+  color: #fff;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.dictee-play-btn:hover {
+  box-shadow: 0 0 18px var(--violet-glow);
+  transform: scale(1.02);
+}
+
+.dictee-play-btn.playing {
+  background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.4);
+  color: var(--amber);
+}
+
+.dictee-reveal-btn {
+  padding: 0.65rem 1rem;
+  background: var(--surface2);
+  border: 1px solid var(--subtle);
+  border-radius: 9999px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.dictee-reveal-btn.active {
+  background: rgba(74,222,128,0.12);
+  border-color: rgba(74,222,128,0.35);
+  color: var(--green);
+}
+
+.dictee-reveal-btn:hover:not(.active) {
+  color: var(--cream);
+  border-color: var(--subtle);
+}
+
 /* ─── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 720px) {
   .controls   { grid-template-columns: 1fr 1fr; }

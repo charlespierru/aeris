@@ -13,6 +13,12 @@ let currentInstrument = null;
 const instrumentCache = {};
 let rootOctave = 4;     // octave écrit de la note fondamentale (2, 3 ou 4)
 
+// ─── Dictée musicale — state ──────────────────────────────────────────────────
+let currentDicteePool = [];
+let dicteeTimeouts    = [];
+let dicteeIsPlaying   = false;
+let dicteeReveal      = false;
+
 function getInstrument() {
   const val = document.getElementById('transposeSelect').value;
   return TRANSPOSE_INSTRUMENT[val] || TRANSPOSE_INSTRUMENT['0'];
@@ -574,8 +580,10 @@ function render() {
   earBtn.setAttribute('role', 'button');
   earBtn.setAttribute('tabindex', '0');
   earBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 0 1-7 0"/><path d="M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 0 4 0"/></svg>`;
-  earBtn.addEventListener('click', () => document.getElementById('listenModal').classList.add('open'));
-  earBtn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('listenModal').classList.add('open'); });
+  const _scalePool  = offsets.map(o => baseMidi + o);
+  const _scaleLabel = `${root} ${def.label} — Gamme`;
+  earBtn.addEventListener('click', () => openListenModal(_scalePool, _scaleLabel));
+  earBtn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openListenModal(_scalePool, _scaleLabel); });
   const earLabel = document.createElement('span');
   earLabel.className = 'interval-label';
   earLabel.textContent = '\u00A0'; // non-breaking space — same height as other labels
@@ -589,11 +597,11 @@ function render() {
   const ninthSemitones     = getArpSemitones(scaleType, 'ninth');
   const eleventhSemitones  = getArpSemitones(scaleType, 'eleventh');
   const thirteenthSemitones = getArpSemitones(scaleType, 'thirteenth');
-  renderArp('triadArp',      rootIdx, triadSemitones,      ['root-c','third-c','fifth-c'],                                       ['R','3rd','5th'],                baseMidi, rootLetterIdx); appendArpEarBtn('triadArp');
-  renderArp('seventhArp',    rootIdx, seventhSemitones,    ['root-c','third-c','fifth-c','seventh-c'],                           ['R','3rd','5th','7th'],          baseMidi, rootLetterIdx); appendArpEarBtn('seventhArp');
-  renderArp('ninthArp',      rootIdx, ninthSemitones,      ['root-c','third-c','fifth-c','seventh-c','ninth-c'],                 ['R','3rd','5th','7th','9th'],    baseMidi, rootLetterIdx); appendArpEarBtn('ninthArp');
-  renderArp('eleventhArp',   rootIdx, eleventhSemitones,   ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c'],    ['R','3rd','5th','7th','9th','11th'],  baseMidi, rootLetterIdx); appendArpEarBtn('eleventhArp');
-  renderArp('thirteenthArp', rootIdx, thirteenthSemitones, ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c','thirteenth-c'], ['R','3rd','5th','7th','9th','11th','13th'], baseMidi, rootLetterIdx); appendArpEarBtn('thirteenthArp');
+  renderArp('triadArp',      rootIdx, triadSemitones,      ['root-c','third-c','fifth-c'],                                       ['R','3rd','5th'],                baseMidi, rootLetterIdx); appendArpEarBtn('triadArp',      triadSemitones.map(s => baseMidi+s),      `${root} ${def.label} — Triade`);
+  renderArp('seventhArp',    rootIdx, seventhSemitones,    ['root-c','third-c','fifth-c','seventh-c'],                           ['R','3rd','5th','7th'],          baseMidi, rootLetterIdx); appendArpEarBtn('seventhArp',    seventhSemitones.map(s => baseMidi+s),    `${root} ${def.label} — 7ème`);
+  renderArp('ninthArp',      rootIdx, ninthSemitones,      ['root-c','third-c','fifth-c','seventh-c','ninth-c'],                 ['R','3rd','5th','7th','9th'],    baseMidi, rootLetterIdx); appendArpEarBtn('ninthArp',      ninthSemitones.map(s => baseMidi+s),      `${root} ${def.label} — 9ème`);
+  renderArp('eleventhArp',   rootIdx, eleventhSemitones,   ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c'],    ['R','3rd','5th','7th','9th','11th'],  baseMidi, rootLetterIdx); appendArpEarBtn('eleventhArp',   eleventhSemitones.map(s => baseMidi+s),   `${root} ${def.label} — 11ème`);
+  renderArp('thirteenthArp', rootIdx, thirteenthSemitones, ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c','thirteenth-c'], ['R','3rd','5th','7th','9th','11th','13th'], baseMidi, rootLetterIdx); appendArpEarBtn('thirteenthArp', thirteenthSemitones.map(s => baseMidi+s), `${root} ${def.label} — 13ème`);
 
   // Practice tips
   const tipsList = document.getElementById('practiceTips');
@@ -636,7 +644,7 @@ function getArpSemitones(scaleType, type) {
   return (maps[scaleType] || maps.major)[type];
 }
 
-function appendArpEarBtn(id) {
+function appendArpEarBtn(id, pool, label) {
   const container = document.getElementById(id);
   const arrow = document.createElement('div');
   arrow.className = 'arp-arrow';
@@ -653,8 +661,8 @@ function appendArpEarBtn(id) {
   circle.setAttribute('tabindex', '0');
   circle.title = 'Écoute interactive';
   circle.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 0 1-7 0"/><path d="M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 0 4 0"/></svg>`;
-  circle.addEventListener('click', () => document.getElementById('listenModal').classList.add('open'));
-  circle.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('listenModal').classList.add('open'); });
+  circle.addEventListener('click', () => openListenModal(pool, label));
+  circle.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openListenModal(pool, label); });
   note.appendChild(deg);
   note.appendChild(circle);
   container.appendChild(arrow);
@@ -724,12 +732,67 @@ document.getElementById('notesRow').addEventListener('click', e => {
   });
 });
 
-// ─── Listen modal ─────────────────────────────────────────────────────────────
+// ─── Dictée musicale — fonctions ──────────────────────────────────────────────
+
+function openListenModal(pool, label) {
+  currentDicteePool = pool || [];
+  stopDictee();
+  document.getElementById('dicteeSource').textContent = label || '';
+  document.getElementById('listenModal').classList.add('open');
+}
+
+function closeListenModal() {
+  stopDictee();
+  document.getElementById('listenModal').classList.remove('open');
+}
+
+function stopDictee() {
+  dicteeTimeouts.forEach(t => clearTimeout(t));
+  dicteeTimeouts = [];
+  dicteeIsPlaying = false;
+  const btn = document.getElementById('dicteePlayBtn');
+  if (btn) { btn.textContent = '▶  Play'; btn.classList.remove('playing'); }
+  const circle = document.getElementById('dicteeCircle');
+  if (circle) { circle.textContent = '♪'; circle.classList.remove('playing'); }
+}
+
+async function startDictee() {
+  if (!currentDicteePool.length) return;
+  await ensureInstrumentLoaded();
+  const count = parseInt(document.getElementById('noteCountSlider').value);
+  const bpm   = parseInt(document.getElementById('tempoSlider').value);
+  const ms    = Math.round(60000 / bpm);
+  const seq   = Array.from({ length: count }, () =>
+    currentDicteePool[Math.floor(Math.random() * currentDicteePool.length)]
+  );
+  dicteeIsPlaying = true;
+  const btn = document.getElementById('dicteePlayBtn');
+  btn.textContent = '■  Stop';
+  btn.classList.add('playing');
+  seq.forEach((midi, i) => {
+    const t = setTimeout(() => {
+      if (!dicteeIsPlaying) return;
+      playNote(midi);
+      const circle = document.getElementById('dicteeCircle');
+      if (circle) {
+        circle.classList.remove('playing');
+        void circle.offsetWidth;
+        circle.textContent = dicteeReveal ? midiToName(midi).replace(/\d/g, '') : '♪';
+        circle.classList.add('playing');
+        circle.addEventListener('animationend', () => circle.classList.remove('playing'), { once: true });
+      }
+      if (i === seq.length - 1) dicteeTimeouts.push(setTimeout(stopDictee, ms + 400));
+    }, i * ms);
+    dicteeTimeouts.push(t);
+  });
+}
+
+// ─── Listen modal — handlers ───────────────────────────────────────────────────
 
 const listenModal = document.getElementById('listenModal');
-document.getElementById('modalClose').addEventListener('click', () => listenModal.classList.remove('open'));
-listenModal.addEventListener('click', e => { if (e.target === listenModal) listenModal.classList.remove('open'); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') listenModal.classList.remove('open'); });
+document.getElementById('modalClose').addEventListener('click', closeListenModal);
+listenModal.addEventListener('click', e => { if (e.target === listenModal) closeListenModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeListenModal(); });
 
 // ─── Controls ─────────────────────────────────────────────────────────────────
 
@@ -754,6 +817,26 @@ document.getElementById('transposeSelect').addEventListener('change', () => {
 document.getElementById('octaveSelect').addEventListener('change', e => {
   rootOctave = parseInt(e.target.value);
   render();
+});
+
+// ─── Dictée — câblage des contrôles ───────────────────────────────────────────
+
+document.getElementById('noteCountSlider').addEventListener('input', function () {
+  document.getElementById('noteCountVal').textContent = this.value;
+});
+
+document.getElementById('tempoSlider').addEventListener('input', function () {
+  document.getElementById('tempoVal').textContent = this.value + ' BPM';
+});
+
+document.getElementById('dicteePlayBtn').addEventListener('click', () => {
+  if (dicteeIsPlaying) stopDictee();
+  else startDictee();
+});
+
+document.getElementById('dicteeRevealBtn').addEventListener('click', function () {
+  dicteeReveal = !dicteeReveal;
+  this.classList.toggle('active', dicteeReveal);
 });
 
 // Init
