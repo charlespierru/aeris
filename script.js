@@ -18,6 +18,7 @@ let currentDicteePool = [];
 let dicteeTimeouts    = [];
 let dicteeIsPlaying   = false;
 let dicteeReveal      = false;
+let currentDicteeNode = null;  // nœud audio en cours — pour le couper net
 
 function getInstrument() {
   const val = document.getElementById('transposeSelect').value;
@@ -746,10 +747,18 @@ function closeListenModal() {
   document.getElementById('listenModal').classList.remove('open');
 }
 
+function stopDicteeNote() {
+  if (currentDicteeNode) {
+    try { currentDicteeNode.stop(); } catch(e) {}
+    currentDicteeNode = null;
+  }
+}
+
 function stopDictee() {
   dicteeTimeouts.forEach(t => clearTimeout(t));
   dicteeTimeouts = [];
   dicteeIsPlaying = false;
+  stopDicteeNote();
   const btn = document.getElementById('dicteePlayBtn');
   if (btn) { btn.textContent = '▶  Play'; btn.classList.remove('playing'); }
   const circle = document.getElementById('dicteeCircle');
@@ -772,7 +781,10 @@ async function startDictee() {
   seq.forEach((midi, i) => {
     const t = setTimeout(() => {
       if (!dicteeIsPlaying) return;
-      playNote(midi);
+      stopDicteeNote();
+      while (midi < 45) midi += 12;
+      while (midi > 96) midi -= 12;
+      currentDicteeNode = currentInstrument.play(midiToName(midi), getAudioCtx().currentTime, { duration: 1.4, gain: 2 });
       const circle = document.getElementById('dicteeCircle');
       if (circle) {
         circle.classList.remove('playing');
