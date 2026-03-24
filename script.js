@@ -625,6 +625,9 @@ function render() {
     card.innerHTML = `<div class="pattern-name">${p.name}</div><div class="pattern-desc">${p.desc}</div>`;
     patternsDiv.appendChild(card);
   });
+
+  // Circle of Fifths highlight
+  updateCofHighlight();
 }
 
 function getArpSemitones(scaleType, type) {
@@ -703,6 +706,153 @@ function renderArp(id, rootIdx, semitones, classes, labels, baseMidi, rootLetter
       arrow.style.marginTop = '1.2rem';
       arrow.textContent = '→';
       container.appendChild(arrow);
+    }
+  });
+}
+
+// ─── Circle of Fifths ─────────────────────────────────────────────────────────
+
+const COF_DATA = [
+  { major: 'C',  minor: 'Am',  sig: '0',   mRoot: 'C',  minRoot: 'A'  },
+  { major: 'G',  minor: 'Em',  sig: '1♯',  mRoot: 'G',  minRoot: 'E'  },
+  { major: 'D',  minor: 'Bm',  sig: '2♯',  mRoot: 'D',  minRoot: 'B'  },
+  { major: 'A',  minor: 'F♯m', sig: '3♯',  mRoot: 'A',  minRoot: 'F#' },
+  { major: 'E',  minor: 'C♯m', sig: '4♯',  mRoot: 'E',  minRoot: 'C#' },
+  { major: 'B',  minor: 'G♯m', sig: '5♯',  mRoot: 'B',  minRoot: 'G#' },
+  { major: 'F♯', minor: 'D♯m', sig: '6♯',  mRoot: 'F#', minRoot: 'D#' },
+  { major: 'D♭', minor: 'B♭m', sig: '5♭',  mRoot: 'Db', minRoot: 'Bb' },
+  { major: 'A♭', minor: 'Fm',  sig: '4♭',  mRoot: 'Ab', minRoot: 'F'  },
+  { major: 'E♭', minor: 'Cm',  sig: '3♭',  mRoot: 'Eb', minRoot: 'C'  },
+  { major: 'B♭', minor: 'Gm',  sig: '2♭',  mRoot: 'Bb', minRoot: 'G'  },
+  { major: 'F',  minor: 'Dm',  sig: '1♭',  mRoot: 'F',  minRoot: 'D'  },
+];
+
+function cofPolar(cx, cy, r, deg) {
+  const rad = (deg - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function cofArc(cx, cy, r1, r2, a1, a2) {
+  const s = cofPolar(cx, cy, r2, a1), e = cofPolar(cx, cy, r2, a2);
+  const s2 = cofPolar(cx, cy, r1, a2), e2 = cofPolar(cx, cy, r1, a1);
+  const lg = a2 - a1 > 180 ? 1 : 0;
+  const f = v => v.toFixed(2);
+  return `M${f(s.x)} ${f(s.y)} A${r2} ${r2} 0 ${lg} 1 ${f(e.x)} ${f(e.y)} L${f(s2.x)} ${f(s2.y)} A${r1} ${r1} 0 ${lg} 0 ${f(e2.x)} ${f(e2.y)}Z`;
+}
+
+function buildCof() {
+  const container = document.getElementById('cofContainer');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const CX = 250, CY = 250;
+  const R_OUT = 242, R_MID = 163, R_IN = 92, R_CORE = 44;
+  const GAP = 1;
+  const NS = 'http://www.w3.org/2000/svg';
+
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 500 500');
+  svg.setAttribute('class', 'cof-svg');
+
+  COF_DATA.forEach((entry, i) => {
+    const a1 = i * 30 + GAP, a2 = (i + 1) * 30 - GAP, mid = i * 30 + 15;
+
+    // Major segment
+    const pMaj = document.createElementNS(NS, 'path');
+    pMaj.setAttribute('d', cofArc(CX, CY, R_MID, R_OUT, a1, a2));
+    pMaj.setAttribute('class', 'cof-seg cof-seg-major');
+    pMaj.dataset.index = i; pMaj.dataset.type = 'major';
+    pMaj.addEventListener('click', () => {
+      document.getElementById('rootSelect').value = entry.mRoot;
+      document.getElementById('scaleTypeSelect').value = 'major';
+      render();
+    });
+    svg.appendChild(pMaj);
+
+    // Minor segment
+    const pMin = document.createElementNS(NS, 'path');
+    pMin.setAttribute('d', cofArc(CX, CY, R_IN, R_MID, a1, a2));
+    pMin.setAttribute('class', 'cof-seg cof-seg-minor');
+    pMin.dataset.index = i; pMin.dataset.type = 'minor';
+    pMin.addEventListener('click', () => {
+      document.getElementById('rootSelect').value = entry.minRoot;
+      document.getElementById('scaleTypeSelect').value = 'natural_minor';
+      render();
+    });
+    svg.appendChild(pMin);
+
+    // Key sig segment (no pointer events)
+    const pSig = document.createElementNS(NS, 'path');
+    pSig.setAttribute('d', cofArc(CX, CY, R_CORE, R_IN, a1, a2));
+    pSig.setAttribute('class', 'cof-seg-sig');
+    svg.appendChild(pSig);
+
+    // Major label
+    const mpMaj = cofPolar(CX, CY, (R_MID + R_OUT) / 2, mid);
+    const tMaj = document.createElementNS(NS, 'text');
+    tMaj.setAttribute('x', mpMaj.x.toFixed(2)); tMaj.setAttribute('y', mpMaj.y.toFixed(2));
+    tMaj.setAttribute('class', 'cof-label-major');
+    tMaj.dataset.index = i; tMaj.dataset.type = 'major';
+    tMaj.textContent = entry.major;
+    svg.appendChild(tMaj);
+
+    // Minor label
+    const mpMin = cofPolar(CX, CY, (R_IN + R_MID) / 2, mid);
+    const tMin = document.createElementNS(NS, 'text');
+    tMin.setAttribute('x', mpMin.x.toFixed(2)); tMin.setAttribute('y', mpMin.y.toFixed(2));
+    tMin.setAttribute('class', 'cof-label-minor');
+    tMin.dataset.index = i; tMin.dataset.type = 'minor';
+    tMin.textContent = entry.minor;
+    svg.appendChild(tMin);
+
+    // Key sig label
+    const mpSig = cofPolar(CX, CY, (R_CORE + R_IN) / 2, mid);
+    const tSig = document.createElementNS(NS, 'text');
+    tSig.setAttribute('x', mpSig.x.toFixed(2)); tSig.setAttribute('y', mpSig.y.toFixed(2));
+    tSig.setAttribute('class', 'cof-label-sig');
+    tSig.textContent = entry.sig;
+    svg.appendChild(tSig);
+  });
+
+  // Center
+  const circ = document.createElementNS(NS, 'circle');
+  circ.setAttribute('cx', CX); circ.setAttribute('cy', CY); circ.setAttribute('r', R_CORE);
+  circ.setAttribute('fill', 'var(--surface)'); circ.setAttribute('stroke', 'rgba(55,65,81,0.6)'); circ.setAttribute('stroke-width', '1');
+  svg.appendChild(circ);
+
+  [['CERCLE', -9], ['DES', 0], ['QUINTES', 9]].forEach(([txt, dy]) => {
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', CX); t.setAttribute('y', CY + dy);
+    t.setAttribute('class', 'cof-center-text');
+    t.textContent = txt;
+    svg.appendChild(t);
+  });
+
+  container.appendChild(svg);
+  updateCofHighlight();
+}
+
+function updateCofHighlight() {
+  const svg = document.querySelector('.cof-svg');
+  if (!svg) return;
+  const root = document.getElementById('rootSelect').value;
+  const scaleType = document.getElementById('scaleTypeSelect').value;
+  const isMajor = scaleType === 'major';
+  const isMinor = ['natural_minor', 'harmonic_minor', 'melodic_minor'].includes(scaleType);
+
+  svg.querySelectorAll('.active').forEach(el => el.classList.remove('active'));
+  if (!isMajor && !isMinor) return;
+
+  COF_DATA.forEach((entry, i) => {
+    if (isMajor && entry.mRoot === root) {
+      svg.querySelectorAll(`[data-index="${i}"]`).forEach(el => {
+        if (el.dataset.type === 'major') el.classList.add('active');
+      });
+    }
+    if (isMinor && entry.minRoot === root) {
+      svg.querySelectorAll(`[data-index="${i}"]`).forEach(el => {
+        if (el.dataset.type === 'minor') el.classList.add('active');
+      });
     }
   });
 }
@@ -853,3 +1003,4 @@ document.getElementById('dicteeRevealBtn').addEventListener('click', function ()
 
 // Init
 render();
+buildCof();;
