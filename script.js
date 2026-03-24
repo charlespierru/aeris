@@ -15,6 +15,7 @@ let rootOctave = 4;     // octave écrit de la note fondamentale (2, 3 ou 4)
 
 // ─── Dictée musicale — state ──────────────────────────────────────────────────
 let currentDicteePool = [];
+let currentDicteeSeq  = [];   // séquence tirée, gardée en mémoire jusqu'au prochain tirage
 let dicteeTimeouts    = [];
 let dicteeIsPlaying   = false;
 let dicteeReveal      = false;
@@ -1139,15 +1140,31 @@ document.getElementById('notesRow').addEventListener('click', e => {
 
 // ─── Dictée musicale — fonctions ──────────────────────────────────────────────
 
+function generateDicteeSeq() {
+  if (!currentDicteePool.length) return;
+  const count = parseInt(document.getElementById('noteCountSlider').value);
+  currentDicteeSeq = Array.from({ length: count }, () =>
+    currentDicteePool[Math.floor(Math.random() * currentDicteePool.length)]
+  );
+}
+
 function openListenModal(pool, label) {
   currentDicteePool = pool || [];
   stopDictee();
   document.getElementById('dicteeSource').textContent = label || '';
   document.getElementById('listenModal').classList.add('open');
+  // Réinitialise toujours à 4 notes par défaut
+  const slider = document.getElementById('noteCountSlider');
+  slider.value = 4;
+  document.getElementById('noteCountVal').textContent = 4;
+  generateDicteeSeq();
 }
 
 function closeListenModal() {
   stopDictee();
+  dicteeReveal = false;
+  const revBtn = document.getElementById('dicteeRevealBtn');
+  if (revBtn) { revBtn.textContent = 'Voir les notes'; revBtn.classList.remove('active'); }
   document.getElementById('listenModal').classList.remove('open');
 }
 
@@ -1170,14 +1187,11 @@ function stopDictee() {
 }
 
 async function startDictee() {
-  if (!currentDicteePool.length) return;
+  if (!currentDicteeSeq.length) return;
   await ensureInstrumentLoaded();
-  const count = parseInt(document.getElementById('noteCountSlider').value);
-  const bpm   = parseInt(document.getElementById('tempoSlider').value);
-  const ms    = Math.round(60000 / bpm);
-  const seq   = Array.from({ length: count }, () =>
-    currentDicteePool[Math.floor(Math.random() * currentDicteePool.length)]
-  );
+  const bpm = parseInt(document.getElementById('tempoSlider').value);
+  const ms  = Math.round(60000 / bpm);
+  const seq = currentDicteeSeq;
   dicteeIsPlaying = true;
   const btn = document.getElementById('dicteePlayBtn');
   btn.textContent = '■  Stop';
@@ -1239,6 +1253,8 @@ document.getElementById('octaveSelect').addEventListener('change', e => {
 
 document.getElementById('noteCountSlider').addEventListener('input', function () {
   document.getElementById('noteCountVal').textContent = this.value;
+  stopDictee();
+  generateDicteeSeq();
 });
 
 document.getElementById('tempoSlider').addEventListener('input', function () {
@@ -1250,9 +1266,15 @@ document.getElementById('dicteePlayBtn').addEventListener('click', () => {
   else startDictee();
 });
 
+document.getElementById('dicteeNewBtn').addEventListener('click', () => {
+  stopDictee();
+  generateDicteeSeq();
+});
+
 document.getElementById('dicteeRevealBtn').addEventListener('click', function () {
   dicteeReveal = !dicteeReveal;
   this.classList.toggle('active', dicteeReveal);
+  this.textContent = dicteeReveal ? 'Cacher les notes' : 'Voir les notes';
 });
 
 // Init
