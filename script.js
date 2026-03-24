@@ -578,12 +578,12 @@ function render() {
   earBlock.className = 'note-block';
   const earBtn = document.createElement('div');
   earBtn.className = 'note-pill ear-btn';
-  earBtn.title = 'Écoute interactive';
+  earBtn.title = 'Play what you hear';
   earBtn.setAttribute('role', 'button');
   earBtn.setAttribute('tabindex', '0');
   earBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 0 1-7 0"/><path d="M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 0 4 0"/></svg>`;
   const _scalePool  = offsets.map(o => baseMidi + o);
-  const _scaleLabel = `${root} ${def.label} — Gamme`;
+  const _scaleLabel = `${root} ${def.label} — Scale`;
   earBtn.addEventListener('click', () => openListenModal(_scalePool, _scaleLabel));
   earBtn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openListenModal(_scalePool, _scaleLabel); });
   const earLabel = document.createElement('span');
@@ -599,11 +599,11 @@ function render() {
   const ninthSemitones     = getArpSemitones(scaleType, 'ninth');
   const eleventhSemitones  = getArpSemitones(scaleType, 'eleventh');
   const thirteenthSemitones = getArpSemitones(scaleType, 'thirteenth');
-  renderArp('triadArp',      rootIdx, triadSemitones,      ['root-c','third-c','fifth-c'],                                       ['R','3rd','5th'],                baseMidi, rootLetterIdx); appendArpEarBtn('triadArp',      triadSemitones.map(s => baseMidi+s),      `${root} ${def.label} — Triade`);
-  renderArp('seventhArp',    rootIdx, seventhSemitones,    ['root-c','third-c','fifth-c','seventh-c'],                           ['R','3rd','5th','7th'],          baseMidi, rootLetterIdx); appendArpEarBtn('seventhArp',    seventhSemitones.map(s => baseMidi+s),    `${root} ${def.label} — 7ème`);
-  renderArp('ninthArp',      rootIdx, ninthSemitones,      ['root-c','third-c','fifth-c','seventh-c','ninth-c'],                 ['R','3rd','5th','7th','9th'],    baseMidi, rootLetterIdx); appendArpEarBtn('ninthArp',      ninthSemitones.map(s => baseMidi+s),      `${root} ${def.label} — 9ème`);
-  renderArp('eleventhArp',   rootIdx, eleventhSemitones,   ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c'],    ['R','3rd','5th','7th','9th','11th'],  baseMidi, rootLetterIdx); appendArpEarBtn('eleventhArp',   eleventhSemitones.map(s => baseMidi+s),   `${root} ${def.label} — 11ème`);
-  renderArp('thirteenthArp', rootIdx, thirteenthSemitones, ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c','thirteenth-c'], ['R','3rd','5th','7th','9th','11th','13th'], baseMidi, rootLetterIdx); appendArpEarBtn('thirteenthArp', thirteenthSemitones.map(s => baseMidi+s), `${root} ${def.label} — 13ème`);
+  renderArp('triadArp',      rootIdx, triadSemitones,      ['root-c','third-c','fifth-c'],                                       ['R','3rd','5th'],                baseMidi, rootLetterIdx); appendArpEarBtn('triadArp',      triadSemitones.map(s => baseMidi+s),      `${root} ${def.label} — Triad`);
+  renderArp('seventhArp',    rootIdx, seventhSemitones,    ['root-c','third-c','fifth-c','seventh-c'],                           ['R','3rd','5th','7th'],          baseMidi, rootLetterIdx); appendArpEarBtn('seventhArp',    seventhSemitones.map(s => baseMidi+s),    `${root} ${def.label} — 7th`);
+  renderArp('ninthArp',      rootIdx, ninthSemitones,      ['root-c','third-c','fifth-c','seventh-c','ninth-c'],                 ['R','3rd','5th','7th','9th'],    baseMidi, rootLetterIdx); appendArpEarBtn('ninthArp',      ninthSemitones.map(s => baseMidi+s),      `${root} ${def.label} — 9th`);
+  renderArp('eleventhArp',   rootIdx, eleventhSemitones,   ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c'],    ['R','3rd','5th','7th','9th','11th'],  baseMidi, rootLetterIdx); appendArpEarBtn('eleventhArp',   eleventhSemitones.map(s => baseMidi+s),   `${root} ${def.label} — 11th`);
+  renderArp('thirteenthArp', rootIdx, thirteenthSemitones, ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c','thirteenth-c'], ['R','3rd','5th','7th','9th','11th','13th'], baseMidi, rootLetterIdx); appendArpEarBtn('thirteenthArp', thirteenthSemitones.map(s => baseMidi+s), `${root} ${def.label} — 13th`);
 
   // Practice tips
   const tipsList = document.getElementById('practiceTips');
@@ -667,7 +667,7 @@ function appendArpEarBtn(id, pool, label) {
   circle.className = 'arp-circle ear-btn';
   circle.setAttribute('role', 'button');
   circle.setAttribute('tabindex', '0');
-  circle.title = 'Écoute interactive';
+  circle.title = 'Play what you hear';
   circle.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 0 1-7 0"/><path d="M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 0 4 0"/></svg>`;
   circle.addEventListener('click', () => openListenModal(pool, label));
   circle.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openListenModal(pool, label); });
@@ -801,7 +801,7 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
   if (!DIATONIC_SCALES.has(scaleType)) {
     const msg = document.createElement('p');
     msg.className = 'prog-na';
-    msg.textContent = 'Les progressions diatoniques ne s\'appliquent pas aux gammes symétriques (ton entier, diminuée, chromatique).';
+    msg.textContent = 'Diatonic progressions do not apply to symmetric scales (whole tone, diminished, chromatic).';
     container.appendChild(msg);
     return;
   }
@@ -823,8 +823,8 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
     const sev   = off[i + 6] - rOff;
 
     let quality, qClass;
-    if      (third === 4 && fifth === 7) { quality = 'Majeur'; qClass = 'major'; }
-    else if (third === 3 && fifth === 7) { quality = 'Mineur'; qClass = 'minor'; }
+    if      (third === 4 && fifth === 7) { quality = 'Major';  qClass = 'major'; }
+    else if (third === 3 && fifth === 7) { quality = 'Minor';  qClass = 'minor'; }
     else if (third === 3 && fifth === 6) { quality = 'Dim.';   qClass = 'dim';   }
     else if (third === 4 && fifth === 8) { quality = 'Aug.';   qClass = 'aug';   }
     else                                 { quality = '—';      qClass = 'other'; }
@@ -879,7 +879,7 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
   // ── Titre ──────────────────────────────────────────────────────────────────
   const title = document.createElement('div');
   title.className = 'prog-title';
-  title.textContent = `Accords diatoniques — ${root} ${def.label}`;
+  title.textContent = `Diatonic Chords — ${root} ${def.label}`;
   container.appendChild(title);
 
   // ── Tableau I–VII ──────────────────────────────────────────────────────────
@@ -888,7 +888,7 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
   const table = document.createElement('table');
   table.className = 'prog-table';
   const thead = document.createElement('thead');
-  thead.innerHTML = '<tr><th>Degré</th><th>Note</th><th>Qualité</th><th>Triade</th><th>7e</th><th>9e</th><th>11e</th><th>13e</th></tr>';
+  thead.innerHTML = '<tr><th>Degree</th><th>Note</th><th>Quality</th><th>Triad</th><th>7th</th><th>9th</th><th>11th</th><th>13th</th></tr>';
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
@@ -910,7 +910,7 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
     const chordMidis  = [ch.triadMidi, ch.chord7Midi, ch.chord9Midi, ch.chord11Midi, ch.chord13Midi];
     const chordTitles = [ch.triadName, ch.chord7Name, ch.chord9Name, ch.chord11Name, ch.chord13Name];
     chordCells.forEach((cell, idx) => {
-      cell.title = `Jouer ${chordTitles[idx]}`;
+      cell.title = `Play ${chordTitles[idx]}`;
       cell.addEventListener('click', () => playSingleChord(chordMidis[idx]));
     });
     tbody.appendChild(tr);
@@ -921,12 +921,12 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
 
   // ── Progressions classiques ────────────────────────────────────────────────
   const PROGRESSIONS = [
-    { name: 'Cadence parfaite',   degrees: [4, 0],       display: 'V → I'            },
-    { name: 'Cadence plagale',    degrees: [3, 0],       display: 'IV → I'           },
-    { name: 'Turnaround jazz',    degrees: [1, 4, 0],    display: 'ii → V → I'       },
-    { name: 'Trois accords',      degrees: [0, 3, 4],    display: 'I → IV → V'       },
-    { name: 'Pop universelle',    degrees: [0, 4, 5, 3], display: 'I → V → vi → IV'  },
-    { name: 'Doo-wop / Années 50',degrees: [0, 5, 3, 4], display: 'I → vi → IV → V'  },
+    { name: 'Perfect Cadence',    degrees: [4, 0],       display: 'V → I'            },
+    { name: 'Plagal Cadence',     degrees: [3, 0],       display: 'IV → I'           },
+    { name: 'Jazz Turnaround',    degrees: [1, 4, 0],    display: 'ii → V → I'       },
+    { name: 'Three Chords',       degrees: [0, 3, 4],    display: 'I → IV → V'       },
+    { name: 'Universal Pop',      degrees: [0, 4, 5, 3], display: 'I → V → vi → IV'  },
+    { name: 'Doo-wop / 50s',      degrees: [0, 5, 3, 4], display: 'I → vi → IV → V'  },
   ];
 
   const cadSection = document.createElement('div');
@@ -934,7 +934,7 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
   const cadLabel = document.createElement('div');
   cadLabel.className = 'section-label';
   cadLabel.style.marginBottom = '0.75rem';
-  cadLabel.textContent = 'Cadences & Progressions classiques';
+  cadLabel.textContent = 'Cadences & Classic Progressions';
   cadSection.appendChild(cadLabel);
 
   const grid = document.createElement('div');
@@ -954,7 +954,7 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
     `;
     const playBtn = document.createElement('button');
     playBtn.className = 'cadence-play-btn';
-    playBtn.textContent = '▶  Jouer';
+    playBtn.textContent = '▶  Play';
     playBtn.addEventListener('click', e => { e.stopPropagation(); playProgSequence(chordMidiList, 1.4, card); });
     card.addEventListener('click', () => playProgSequence(chordMidiList, 1.4, card));
     card.appendChild(playBtn);
@@ -1075,7 +1075,7 @@ function buildCof() {
   circ.setAttribute('fill', 'var(--surface)'); circ.setAttribute('stroke', 'rgba(55,65,81,0.6)'); circ.setAttribute('stroke-width', '1');
   svg.appendChild(circ);
 
-  [['CERCLE', -9], ['DES', 0], ['QUINTES', 9]].forEach(([txt, dy]) => {
+  [['CIRCLE', -9], ['OF', 0], ['FIFTHS', 9]].forEach(([txt, dy]) => {
     const t = document.createElementNS(NS, 'text');
     t.setAttribute('x', CX); t.setAttribute('y', CY + dy);
     t.setAttribute('class', 'cof-center-text');
@@ -1164,7 +1164,7 @@ function closeListenModal() {
   stopDictee();
   dicteeReveal = false;
   const revBtn = document.getElementById('dicteeRevealBtn');
-  if (revBtn) { revBtn.textContent = 'Voir les notes'; revBtn.classList.remove('active'); }
+  if (revBtn) { revBtn.textContent = 'Show notes'; revBtn.classList.remove('active'); }
   document.getElementById('listenModal').classList.remove('open');
 }
 
@@ -1274,7 +1274,7 @@ document.getElementById('dicteeNewBtn').addEventListener('click', () => {
 document.getElementById('dicteeRevealBtn').addEventListener('click', function () {
   dicteeReveal = !dicteeReveal;
   this.classList.toggle('active', dicteeReveal);
-  this.textContent = dicteeReveal ? 'Cacher les notes' : 'Voir les notes';
+  this.textContent = dicteeReveal ? 'Hide notes' : 'Show notes';
 });
 
 // Init
