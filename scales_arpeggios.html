@@ -77,7 +77,7 @@
     <div class="scale-header">
       <div>
         <div class="scale-name" id="scaleName">
-          <span id="scaleNameText">C Major</span><span class="octave-label">8a</span><select id="octaveSelect" title="Octave de la note fondamentale"></select>
+          <span id="scaleNameText">C Major</span>
         </div>
         <div class="enharmonic-note" id="enharmonicNote"></div>
       </div>
@@ -86,7 +86,12 @@
 
     <!-- Notes row with intervals -->
     <div style="margin-bottom:1.25rem;">
-      <div class="section-label">Scale Degrees</div>
+      <div class="scale-degrees-header">
+        <div class="section-label">Scale Degrees</div>
+        <div class="octave-row">
+          <span class="octave-label">8a</span><select id="octaveSelect" title="Octave de la note fondamentale"></select>
+        </div>
+      </div>
       <div class="notes-row" id="notesRow"></div>
     </div>
 
@@ -118,6 +123,7 @@
     <button class="tab-btn" data-tab="practice">Practice Tips</button>
     <button class="tab-btn" data-tab="technique">Technique Notes</button>
     <button class="tab-btn" data-tab="patterns">Patterns</button>
+    <button class="tab-btn" data-tab="prog">Progressions</button>
     <button class="tab-btn" data-tab="cof">Cercle des Quintes</button>
   </div>
 
@@ -169,6 +175,11 @@
     <div id="patternsContent"></div>
   </div>
 
+  <!-- Tab: Progressions diatoniques -->
+  <div class="tab-panel" id="tab-prog">
+    <div id="progContent"></div>
+  </div>
+
   <!-- Tab: Cercle des Quintes -->
   <div class="tab-panel" id="tab-cof">
     <div id="cofContainer"></div>
@@ -218,6 +229,6 @@
   </div>
 </div>
 
-<script src="script.js?v=9"></script>
+<script src="script.js?v=18"></script>
 </body>
 </html>
