@@ -873,6 +873,146 @@ main {
   .info-grid { grid-template-columns: 1fr; }
 }
 
+/* ─── Progressions diatoniques ─────────────────────────────────────────────── */
+.prog-title {
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.prog-na {
+  color: var(--muted);
+  font-size: 0.84rem;
+  text-align: center;
+  padding: 2rem 1rem;
+  line-height: 1.6;
+}
+
+.prog-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin-bottom: 1.75rem;
+}
+
+.prog-table thead th {
+  color: var(--muted);
+  font-size: 0.56rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 500;
+  padding: 0.4rem 0.65rem;
+  border-bottom: 1px solid var(--subtle);
+  text-align: left;
+}
+
+.prog-row {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.12s;
+}
+
+.prog-row:hover { background: var(--surface3); }
+
+.prog-row td { padding: 0.55rem 0.65rem; }
+
+.prog-row-major { border-left: 3px solid rgba(74,222,128,0.35); }
+.prog-row-minor { border-left: 3px solid rgba(251,191,36,0.35); }
+.prog-row-dim   { border-left: 3px solid rgba(251,146,60,0.35); }
+.prog-row-aug   { border-left: 3px solid rgba(34,211,238,0.35); }
+.prog-row-other { border-left: 3px solid var(--subtle); }
+
+.prog-roman { font-weight: 700; font-size: 0.88rem; width: 2.8rem; }
+.prog-roman-major { color: var(--green);  }
+.prog-roman-minor { color: var(--amber);  }
+.prog-roman-dim   { color: var(--orange); }
+.prog-roman-aug   { color: var(--cyan);   }
+.prog-roman-other { color: var(--muted);  }
+
+.prog-note        { color: var(--cream); font-weight: 600; }
+
+.prog-quality       { font-size: 0.72rem; }
+.prog-quality-major { color: var(--green);  }
+.prog-quality-minor { color: var(--amber);  }
+.prog-quality-dim   { color: var(--orange); }
+.prog-quality-aug   { color: var(--cyan);   }
+.prog-quality-other { color: var(--muted);  }
+
+.prog-chord-name { color: #9ca3af; font-family: 'DM Mono', monospace; }
+.prog-seventh    { color: var(--muted); font-size: 0.76rem; }
+
+.prog-chord-btn {
+  background: var(--surface3);
+  border: 1px solid var(--subtle);
+  border-radius: 50%;
+  color: var(--violet);
+  width: 1.55rem;
+  height: 1.55rem;
+  font-size: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: box-shadow 0.15s, transform 0.1s, background 0.15s;
+}
+
+.prog-chord-btn:hover {
+  box-shadow: 0 0 10px var(--violet-glow);
+  transform: scale(1.15);
+  background: var(--violet-bg);
+}
+
+/* ─── Cadences ──────────────────────────────────────────────────────────────── */
+.cadences-section { margin-top: 0.25rem; }
+
+.cadences-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+}
+
+@media (max-width: 560px) {
+  .cadences-grid { grid-template-columns: 1fr; }
+}
+
+.cadence-card {
+  background: var(--surface2);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-left: 3px solid var(--violet-mid);
+  border-radius: 0 12px 12px 0;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  transition: background 0.15s, border-left-color 0.15s;
+}
+
+.cadence-card:hover      { background: var(--surface3); border-left-color: var(--violet); }
+.cadence-card.playing    { background: var(--violet-bg); border-left-color: var(--violet); }
+
+.cadence-name    { font-size: 0.72rem; font-weight: 600; color: var(--violet); letter-spacing: 0.03em; }
+.cadence-degrees { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.04em; margin-top: 0.05rem; }
+.cadence-chords  { font-size: 0.84rem; color: var(--cream); font-family: 'DM Mono', monospace; margin-top: 0.2rem; }
+
+.cadence-play-btn {
+  align-self: flex-start;
+  margin-top: 0.55rem;
+  padding: 0.28rem 0.75rem;
+  background: var(--violet-bg);
+  border: 1px solid var(--violet-border);
+  border-radius: 9999px;
+  color: var(--violet);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.63rem;
+  letter-spacing: 0.07em;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.cadence-play-btn:hover { box-shadow: 0 0 12px var(--violet-glow); }
+
 /* ─── Circle of Fifths ─────────────────────────────────────────────────────── */
 #cofContainer {
   display: flex;

@@ -626,6 +626,9 @@ function render() {
     patternsDiv.appendChild(card);
   });
 
+  // Progressions diatoniques
+  renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes);
+
   // Circle of Fifths highlight
   updateCofHighlight();
 }
@@ -708,6 +711,200 @@ function renderArp(id, rootIdx, semitones, classes, labels, baseMidi, rootLetter
       container.appendChild(arrow);
     }
   });
+}
+
+// ─── Progressions diatoniques ─────────────────────────────────────────────────
+
+let progTimeouts  = [];
+let progIsPlaying = false;
+
+function stopProgression() {
+  progTimeouts.forEach(t => clearTimeout(t));
+  progTimeouts  = [];
+  progIsPlaying = false;
+  document.querySelectorAll('.cadence-card.playing').forEach(el => el.classList.remove('playing'));
+}
+
+function scheduleChord(midiNotes, startMs, duration) {
+  midiNotes.forEach((midi, idx) => {
+    progTimeouts.push(setTimeout(() => {
+      if (!progIsPlaying) return;
+      let m = midi;
+      while (m < 45) m += 12;
+      while (m > 96) m -= 12;
+      currentInstrument.play(midiToName(m), getAudioCtx().currentTime, { duration, gain: 1.5 });
+    }, startMs + idx * 45));
+  });
+}
+
+async function playSingleChord(midiNotes) {
+  stopProgression();
+  await ensureInstrumentLoaded();
+  progIsPlaying = true;
+  scheduleChord(midiNotes, 0, 1.5);
+  progTimeouts.push(setTimeout(() => { progIsPlaying = false; }, 900));
+}
+
+async function playProgSequence(chordMidiList, durationEach, card) {
+  stopProgression();
+  await ensureInstrumentLoaded();
+  progIsPlaying = true;
+  if (card) card.classList.add('playing');
+  const gapMs = Math.round(durationEach * 1000);
+  chordMidiList.forEach((notes, i) => scheduleChord(notes, i * gapMs, durationEach * 0.88));
+  progTimeouts.push(setTimeout(() => {
+    if (card) card.classList.remove('playing');
+    progIsPlaying = false;
+  }, chordMidiList.length * gapMs + 700));
+}
+
+function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
+  const container = document.getElementById('progContent');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!DIATONIC_SCALES.has(scaleType)) {
+    const msg = document.createElement('p');
+    msg.className = 'prog-na';
+    msg.textContent = 'Les progressions diatoniques ne s\'appliquent pas aux gammes symétriques (ton entier, diminuée, chromatique).';
+    container.appendChild(msg);
+    return;
+  }
+
+  const def = SCALE_DEFS[scaleType];
+
+  // Build extended offset array (two octaves = 14 entries after index 0)
+  const off = [0];
+  for (const s of def.intervals) off.push(off[off.length - 1] + s); // indices 0–7
+  for (let i = 1; i < 8; i++) off.push(off[i] + 12);               // indices 8–13
+
+  const ROMAN_UP = ['I','II','III','IV','V','VI','VII'];
+
+  const chords = [];
+  for (let i = 0; i < 7; i++) {
+    const rOff  = off[i];
+    const third = off[i + 2] - rOff;
+    const fifth = off[i + 4] - rOff;
+    const sev   = off[i + 6] - rOff;
+
+    let quality, qClass;
+    if      (third === 4 && fifth === 7) { quality = 'Majeur'; qClass = 'major'; }
+    else if (third === 3 && fifth === 7) { quality = 'Mineur'; qClass = 'minor'; }
+    else if (third === 3 && fifth === 6) { quality = 'Dim.';   qClass = 'dim';   }
+    else if (third === 4 && fifth === 8) { quality = 'Aug.';   qClass = 'aug';   }
+    else                                 { quality = '—';      qClass = 'other'; }
+
+    let roman = ROMAN_UP[i];
+    if (qClass === 'minor') roman = roman.toLowerCase();
+    if (qClass === 'dim')   roman = roman.toLowerCase() + '°';
+    if (qClass === 'aug')   roman += '+';
+
+    let sevSuffix;
+    if      (sev === 11)                       sevSuffix = 'maj7';
+    else if (sev === 10 && qClass === 'major') sevSuffix = '7';
+    else if (sev === 10)                       sevSuffix = 'm7';
+    else if (sev === 9  && qClass === 'dim')   sevSuffix = '°7';
+    else                                       sevSuffix = 'ø7';
+
+    const noteName = (scaleNotes[i] || '').replace("'", '');
+
+    let triadName = noteName;
+    if (qClass === 'minor') triadName += 'm';
+    if (qClass === 'dim')   triadName += '°';
+    if (qClass === 'aug')   triadName += '+';
+
+    let chord7Name;
+    if      (sevSuffix === 'maj7') chord7Name = noteName + 'maj7';
+    else if (sevSuffix === '7')    chord7Name = noteName + '7';
+    else if (sevSuffix === 'm7')   chord7Name = noteName + 'm7';
+    else if (sevSuffix === 'ø7')   chord7Name = noteName + 'ø7';
+    else                           chord7Name = noteName + '°7';
+
+    const triadMidi = [baseMidi + rOff, baseMidi + rOff + third, baseMidi + rOff + fifth];
+
+    chords.push({ roman, noteName, quality, qClass, triadName, chord7Name, triadMidi });
+  }
+
+  // ── Titre ──────────────────────────────────────────────────────────────────
+  const title = document.createElement('div');
+  title.className = 'prog-title';
+  title.textContent = `Accords diatoniques — ${root} ${def.label}`;
+  container.appendChild(title);
+
+  // ── Tableau I–VII ──────────────────────────────────────────────────────────
+  const table = document.createElement('table');
+  table.className = 'prog-table';
+  const thead = document.createElement('thead');
+  thead.innerHTML = '<tr><th>Degré</th><th>Note</th><th>Qualité</th><th>Triade</th><th>7ème</th><th></th></tr>';
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  chords.forEach(ch => {
+    const tr = document.createElement('tr');
+    tr.className = `prog-row prog-row-${ch.qClass}`;
+    tr.innerHTML = `
+      <td class="prog-roman prog-roman-${ch.qClass}">${ch.roman}</td>
+      <td class="prog-note">${ch.noteName}</td>
+      <td class="prog-quality prog-quality-${ch.qClass}">${ch.quality}</td>
+      <td class="prog-chord-name">${ch.triadName}</td>
+      <td class="prog-chord-name prog-seventh">${ch.chord7Name}</td>
+      <td></td>
+    `;
+    const btn = document.createElement('button');
+    btn.className = 'prog-chord-btn';
+    btn.title = `Jouer ${ch.triadName}`;
+    btn.innerHTML = '▶';
+    btn.addEventListener('click', () => playSingleChord(ch.triadMidi));
+    tr.lastElementChild.appendChild(btn);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  container.appendChild(table);
+
+  // ── Progressions classiques ────────────────────────────────────────────────
+  const PROGRESSIONS = [
+    { name: 'Cadence parfaite',  degrees: [4, 0],       display: 'V → I'            },
+    { name: 'Cadence plagale',   degrees: [3, 0],       display: 'IV → I'           },
+    { name: 'ii – V – I',        degrees: [1, 4, 0],    display: 'ii → V → I'       },
+    { name: 'I – IV – V',        degrees: [0, 3, 4],    display: 'I → IV → V'       },
+    { name: 'I – V – vi – IV',   degrees: [0, 4, 5, 3], display: 'I → V → vi → IV'  },
+    { name: 'I – vi – IV – V',   degrees: [0, 5, 3, 4], display: 'I → vi → IV → V'  },
+  ];
+
+  const cadSection = document.createElement('div');
+  cadSection.className = 'cadences-section';
+  const cadLabel = document.createElement('div');
+  cadLabel.className = 'section-label';
+  cadLabel.style.marginBottom = '0.75rem';
+  cadLabel.textContent = 'Cadences & Progressions classiques';
+  cadSection.appendChild(cadLabel);
+
+  const grid = document.createElement('div');
+  grid.className = 'cadences-grid';
+
+  PROGRESSIONS.forEach(prog => {
+    const chordMidiList = prog.degrees.map(d => chords[d].triadMidi);
+    const chordNames    = prog.degrees.map(d => chords[d].triadName).join(' → ');
+    const romanNames    = prog.degrees.map(d => chords[d].roman).join(' → ');
+
+    const card = document.createElement('div');
+    card.className = 'cadence-card';
+    card.innerHTML = `
+      <div class="cadence-name">${prog.name}</div>
+      <div class="cadence-degrees">${romanNames}</div>
+      <div class="cadence-chords">${chordNames}</div>
+    `;
+    const playBtn = document.createElement('button');
+    playBtn.className = 'cadence-play-btn';
+    playBtn.textContent = '▶  Jouer';
+    playBtn.addEventListener('click', e => { e.stopPropagation(); playProgSequence(chordMidiList, 1.4, card); });
+    card.addEventListener('click', () => playProgSequence(chordMidiList, 1.4, card));
+    card.appendChild(playBtn);
+    grid.appendChild(card);
+  });
+
+  cadSection.appendChild(grid);
+  container.appendChild(cadSection);
 }
 
 // ─── Circle of Fifths ─────────────────────────────────────────────────────────
