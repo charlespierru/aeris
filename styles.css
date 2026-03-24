@@ -177,25 +177,36 @@ main {
   letter-spacing: -0.02em;
 }
 
+.scale-degrees-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.octave-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .octave-label {
-  font-size: 1.5rem;
-  letter-spacing: 0.08em;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--muted);
-  flex-shrink: 0;
-  font-weight: 400;
-  margin-left: 1.5rem;
+  font-weight: 500;
 }
 
 #octaveSelect {
   font-family: 'DM Mono', monospace;
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   color: var(--violet);
   background: var(--violet-bg);
   border: 1px solid var(--violet-border);
-  border-radius: 8px;
-  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  padding: 0.1rem 0.35rem;
   cursor: pointer;
-  flex-shrink: 0;
   transition: box-shadow 0.15s;
 }
 
@@ -894,7 +905,6 @@ main {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.82rem;
-  margin-bottom: 1.75rem;
 }
 
 .prog-table thead th {
@@ -939,8 +949,18 @@ main {
 .prog-quality-aug   { color: var(--cyan);   }
 .prog-quality-other { color: var(--muted);  }
 
-.prog-chord-name { color: #9ca3af; font-family: 'DM Mono', monospace; }
+.prog-chord-name {
+  color: #9ca3af;
+  font-family: 'DM Mono', monospace;
+  cursor: pointer;
+  transition: color 0.15s;
+  user-select: none;
+}
+.prog-chord-name:hover { color: var(--violet); }
 .prog-seventh    { color: var(--muted); font-size: 0.76rem; }
+.prog-ext        { color: #4b5563; font-size: 0.73rem; }
+
+.prog-table-wrap { overflow-x: auto; margin-bottom: 1.75rem; -webkit-overflow-scrolling: touch; }
 
 .prog-chord-btn {
   background: var(--surface3);

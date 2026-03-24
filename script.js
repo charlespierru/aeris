@@ -741,8 +741,42 @@ async function playSingleChord(midiNotes) {
   stopProgression();
   await ensureInstrumentLoaded();
   progIsPlaying = true;
-  scheduleChord(midiNotes, 0, 1.5);
-  progTimeouts.push(setTimeout(() => { progIsPlaying = false; }, 900));
+
+  // 1. Accord plaqué (toutes les notes simultanément)
+  midiNotes.forEach(midi => {
+    let m = midi;
+    while (m < 45) m += 12;
+    while (m > 96) m -= 12;
+    currentInstrument.play(midiToName(m), getAudioCtx().currentTime, { duration: 0.9, gain: 1.4 });
+  });
+
+  // 2. Pause de 550 ms puis arpège
+  const PAUSE = 1500;
+  const ARP_STEP = 500; // noire à 120 BPM
+  midiNotes.forEach((midi, idx) => {
+    progTimeouts.push(setTimeout(() => {
+      if (!progIsPlaying) return;
+      let m = midi;
+      while (m < 45) m += 12;
+      while (m > 96) m -= 12;
+      currentInstrument.play(midiToName(m), getAudioCtx().currentTime, { duration: 0.9, gain: 1.4 });
+    }, PAUSE + idx * ARP_STEP));
+  });
+
+  // 3. Pause 500 ms après l'arpège puis accord plaqué final
+  const arpEnd = PAUSE + midiNotes.length * ARP_STEP;
+  midiNotes.forEach(midi => {
+    progTimeouts.push(setTimeout(() => {
+      if (!progIsPlaying) return;
+      let m = midi;
+      while (m < 45) m += 12;
+      while (m > 96) m -= 12;
+      currentInstrument.play(midiToName(m), getAudioCtx().currentTime, { duration: 1.2, gain: 1.4 });
+    }, arpEnd + 500));
+  });
+
+  const total = arpEnd + 500 + 1400;
+  progTimeouts.push(setTimeout(() => { progIsPlaying = false; }, total));
 }
 
 async function playProgSequence(chordMidiList, durationEach, card) {
@@ -773,10 +807,10 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
 
   const def = SCALE_DEFS[scaleType];
 
-  // Build extended offset array (two octaves = 14 entries after index 0)
+  // Build extended offset array — off[n+7] = off[n]+12, extend to off[18] for 13ths
   const off = [0];
   for (const s of def.intervals) off.push(off[off.length - 1] + s); // indices 0–7
-  for (let i = 1; i < 8; i++) off.push(off[i] + 12);               // indices 8–13
+  while (off.length <= 18) off.push(off[off.length - 7] + 12);      // indices 8–18
 
   const ROMAN_UP = ['I','II','III','IV','V','VI','VII'];
 
@@ -820,9 +854,25 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
     else if (sevSuffix === 'ø7')   chord7Name = noteName + 'ø7';
     else                           chord7Name = noteName + '°7';
 
-    const triadMidi = [baseMidi + rOff, baseMidi + rOff + third, baseMidi + rOff + fifth];
+    const ninth      = off[i + 8]  - rOff;
+    const eleventh   = off[i + 10] - rOff;
+    const thirteenth = off[i + 12] - rOff;
 
-    chords.push({ roman, noteName, quality, qClass, triadName, chord7Name, triadMidi });
+    const ninthLbl = ninth      === 14 ? '9'   : ninth      === 13 ? 'b9'  : '#9';
+    const elevLbl  = eleventh   === 17 ? '11'  : eleventh   === 18 ? '#11' : 'b11';
+    const thirLbl  = thirteenth === 21 ? '13'  : thirteenth === 20 ? 'b13' : '#13';
+
+    const chord9Name  = chord7Name.replace(/7$/, ninthLbl);
+    const chord11Name = chord7Name.replace(/7$/, elevLbl);
+    const chord13Name = chord7Name.replace(/7$/, thirLbl);
+
+    const triadMidi  = [baseMidi + rOff, baseMidi + rOff + third, baseMidi + rOff + fifth];
+    const chord7Midi  = [...triadMidi,  baseMidi + rOff + sev];
+    const chord9Midi  = [...chord7Midi,  baseMidi + rOff + ninth];
+    const chord11Midi = [...chord9Midi,  baseMidi + rOff + eleventh];
+    const chord13Midi = [...chord11Midi, baseMidi + rOff + thirteenth];
+
+    chords.push({ roman, noteName, quality, qClass, triadName, chord7Name, chord9Name, chord11Name, chord13Name, triadMidi, chord7Midi, chord9Midi, chord11Midi, chord13Midi });
   }
 
   // ── Titre ──────────────────────────────────────────────────────────────────
@@ -832,10 +882,12 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
   container.appendChild(title);
 
   // ── Tableau I–VII ──────────────────────────────────────────────────────────
+  const tableWrap = document.createElement('div');
+  tableWrap.className = 'prog-table-wrap';
   const table = document.createElement('table');
   table.className = 'prog-table';
   const thead = document.createElement('thead');
-  thead.innerHTML = '<tr><th>Degré</th><th>Note</th><th>Qualité</th><th>Triade</th><th>7ème</th><th></th></tr>';
+  thead.innerHTML = '<tr><th>Degré</th><th>Note</th><th>Qualité</th><th>Triade</th><th>7e</th><th>9e</th><th>11e</th><th>13e</th></tr>';
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
@@ -848,27 +900,32 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
       <td class="prog-quality prog-quality-${ch.qClass}">${ch.quality}</td>
       <td class="prog-chord-name">${ch.triadName}</td>
       <td class="prog-chord-name prog-seventh">${ch.chord7Name}</td>
-      <td></td>
+      <td class="prog-chord-name prog-ext">${ch.chord9Name}</td>
+      <td class="prog-chord-name prog-ext">${ch.chord11Name}</td>
+      <td class="prog-chord-name prog-ext">${ch.chord13Name}</td>
     `;
-    const btn = document.createElement('button');
-    btn.className = 'prog-chord-btn';
-    btn.title = `Jouer ${ch.triadName}`;
-    btn.innerHTML = '▶';
-    btn.addEventListener('click', () => playSingleChord(ch.triadMidi));
-    tr.lastElementChild.appendChild(btn);
+    // Rendre chaque cellule d'accord cliquable
+    const chordCells = tr.querySelectorAll('.prog-chord-name');
+    const chordMidis  = [ch.triadMidi, ch.chord7Midi, ch.chord9Midi, ch.chord11Midi, ch.chord13Midi];
+    const chordTitles = [ch.triadName, ch.chord7Name, ch.chord9Name, ch.chord11Name, ch.chord13Name];
+    chordCells.forEach((cell, idx) => {
+      cell.title = `Jouer ${chordTitles[idx]}`;
+      cell.addEventListener('click', () => playSingleChord(chordMidis[idx]));
+    });
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
-  container.appendChild(table);
+  tableWrap.appendChild(table);
+  container.appendChild(tableWrap);
 
   // ── Progressions classiques ────────────────────────────────────────────────
   const PROGRESSIONS = [
-    { name: 'Cadence parfaite',  degrees: [4, 0],       display: 'V → I'            },
-    { name: 'Cadence plagale',   degrees: [3, 0],       display: 'IV → I'           },
-    { name: 'ii – V – I',        degrees: [1, 4, 0],    display: 'ii → V → I'       },
-    { name: 'I – IV – V',        degrees: [0, 3, 4],    display: 'I → IV → V'       },
-    { name: 'I – V – vi – IV',   degrees: [0, 4, 5, 3], display: 'I → V → vi → IV'  },
-    { name: 'I – vi – IV – V',   degrees: [0, 5, 3, 4], display: 'I → vi → IV → V'  },
+    { name: 'Cadence parfaite',   degrees: [4, 0],       display: 'V → I'            },
+    { name: 'Cadence plagale',    degrees: [3, 0],       display: 'IV → I'           },
+    { name: 'Turnaround jazz',    degrees: [1, 4, 0],    display: 'ii → V → I'       },
+    { name: 'Trois accords',      degrees: [0, 3, 4],    display: 'I → IV → V'       },
+    { name: 'Pop universelle',    degrees: [0, 4, 5, 3], display: 'I → V → vi → IV'  },
+    { name: 'Doo-wop / Années 50',degrees: [0, 5, 3, 4], display: 'I → vi → IV → V'  },
   ];
 
   const cadSection = document.createElement('div');
