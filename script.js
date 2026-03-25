@@ -528,7 +528,6 @@ function render() {
   } else {
     document.getElementById('relativeKey').textContent = 'N/A (Symmetric)';
   }
-  document.getElementById('commonUse').textContent = def.use;
 
   // Diatonic scales get correct letter-per-degree spelling; symmetric scales keep DISPLAY_NOTES
   const rootLetterIdx = DIATONIC_SCALES.has(scaleType) ? ROOT_LETTER_IDX[root] : undefined;
@@ -567,6 +566,30 @@ function render() {
     }
   });
 
+  // Staff button — opens notation modal for the current scale (before ear btn)
+  const staffSep = document.createElement('div');
+  staffSep.className = 'arrow-sep';
+  staffSep.style.marginTop = '-1rem';
+  staffSep.textContent = '›';
+  notesRow.appendChild(staffSep);
+
+  const staffBlock = document.createElement('div');
+  staffBlock.className = 'note-block';
+  const staffBtn = document.createElement('div');
+  staffBtn.className = 'note-pill staff-btn';
+  staffBtn.title = 'View on staff';
+  staffBtn.setAttribute('role', 'button');
+  staffBtn.setAttribute('tabindex', '0');
+  staffBtn.innerHTML = `<span class="staff-btn-clef">𝄞</span>`;
+  staffBtn.addEventListener('click', () => { if (window.MusicStaffEngine) MusicStaffEngine.openForScale(); });
+  staffBtn.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && window.MusicStaffEngine) MusicStaffEngine.openForScale(); });
+  const staffLabel = document.createElement('span');
+  staffLabel.className = 'interval-label';
+  staffLabel.textContent = '\u00A0';
+  staffBlock.appendChild(staffBtn);
+  staffBlock.appendChild(staffLabel);
+  notesRow.appendChild(staffBlock);
+
   // Ear button — opens listen modal
   const earSep = document.createElement('div');
   earSep.className = 'arrow-sep';
@@ -588,7 +611,7 @@ function render() {
   earBtn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openListenModal(_scalePool, _scaleLabel); });
   const earLabel = document.createElement('span');
   earLabel.className = 'interval-label';
-  earLabel.textContent = '\u00A0'; // non-breaking space — same height as other labels
+  earLabel.textContent = '\u00A0';
   earBlock.appendChild(earBtn);
   earBlock.appendChild(earLabel);
   notesRow.appendChild(earBlock);
@@ -599,11 +622,11 @@ function render() {
   const ninthSemitones     = getArpSemitones(scaleType, 'ninth');
   const eleventhSemitones  = getArpSemitones(scaleType, 'eleventh');
   const thirteenthSemitones = getArpSemitones(scaleType, 'thirteenth');
-  renderArp('triadArp',      rootIdx, triadSemitones,      ['root-c','third-c','fifth-c'],                                       ['R','3rd','5th'],                baseMidi, rootLetterIdx); appendArpEarBtn('triadArp',      triadSemitones.map(s => baseMidi+s),      `${root} ${def.label} — Triad`);
-  renderArp('seventhArp',    rootIdx, seventhSemitones,    ['root-c','third-c','fifth-c','seventh-c'],                           ['R','3rd','5th','7th'],          baseMidi, rootLetterIdx); appendArpEarBtn('seventhArp',    seventhSemitones.map(s => baseMidi+s),    `${root} ${def.label} — 7th`);
-  renderArp('ninthArp',      rootIdx, ninthSemitones,      ['root-c','third-c','fifth-c','seventh-c','ninth-c'],                 ['R','3rd','5th','7th','9th'],    baseMidi, rootLetterIdx); appendArpEarBtn('ninthArp',      ninthSemitones.map(s => baseMidi+s),      `${root} ${def.label} — 9th`);
-  renderArp('eleventhArp',   rootIdx, eleventhSemitones,   ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c'],    ['R','3rd','5th','7th','9th','11th'],  baseMidi, rootLetterIdx); appendArpEarBtn('eleventhArp',   eleventhSemitones.map(s => baseMidi+s),   `${root} ${def.label} — 11th`);
-  renderArp('thirteenthArp', rootIdx, thirteenthSemitones, ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c','thirteenth-c'], ['R','3rd','5th','7th','9th','11th','13th'], baseMidi, rootLetterIdx); appendArpEarBtn('thirteenthArp', thirteenthSemitones.map(s => baseMidi+s), `${root} ${def.label} — 13th`);
+  renderArp('triadArp',      rootIdx, triadSemitones,      ['root-c','third-c','fifth-c'],                                       ['R','3rd','5th'],                baseMidi, rootLetterIdx); appendArpStaffBtn('triadArp',      'triad');      appendArpEarBtn('triadArp',      triadSemitones.map(s => baseMidi+s),      `${root} ${def.label} — Triad`);
+  renderArp('seventhArp',    rootIdx, seventhSemitones,    ['root-c','third-c','fifth-c','seventh-c'],                           ['R','3rd','5th','7th'],          baseMidi, rootLetterIdx); appendArpStaffBtn('seventhArp',    'seventh');    appendArpEarBtn('seventhArp',    seventhSemitones.map(s => baseMidi+s),    `${root} ${def.label} — 7th`);
+  renderArp('ninthArp',      rootIdx, ninthSemitones,      ['root-c','third-c','fifth-c','seventh-c','ninth-c'],                 ['R','3rd','5th','7th','9th'],    baseMidi, rootLetterIdx); appendArpStaffBtn('ninthArp',      'ninth');      appendArpEarBtn('ninthArp',      ninthSemitones.map(s => baseMidi+s),      `${root} ${def.label} — 9th`);
+  renderArp('eleventhArp',   rootIdx, eleventhSemitones,   ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c'],    ['R','3rd','5th','7th','9th','11th'],  baseMidi, rootLetterIdx); appendArpStaffBtn('eleventhArp',   'eleventh');  appendArpEarBtn('eleventhArp',   eleventhSemitones.map(s => baseMidi+s),   `${root} ${def.label} — 11th`);
+  renderArp('thirteenthArp', rootIdx, thirteenthSemitones, ['root-c','third-c','fifth-c','seventh-c','ninth-c','eleventh-c','thirteenth-c'], ['R','3rd','5th','7th','9th','11th','13th'], baseMidi, rootLetterIdx); appendArpStaffBtn('thirteenthArp', 'thirteenth'); appendArpEarBtn('thirteenthArp', thirteenthSemitones.map(s => baseMidi+s), `${root} ${def.label} — 13th`);
 
   // Practice tips
   const tipsList = document.getElementById('practiceTips');
@@ -671,6 +694,31 @@ function appendArpEarBtn(id, pool, label) {
   circle.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 0 1-7 0"/><path d="M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 0 4 0"/></svg>`;
   circle.addEventListener('click', () => openListenModal(pool, label));
   circle.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openListenModal(pool, label); });
+  note.appendChild(deg);
+  note.appendChild(circle);
+  container.appendChild(arrow);
+  container.appendChild(note);
+}
+
+function appendArpStaffBtn(id, chordType) {
+  const container = document.getElementById(id);
+  const arrow = document.createElement('div');
+  arrow.className = 'arp-arrow';
+  arrow.style.marginTop = '1.2rem';
+  arrow.textContent = '→';
+  const note = document.createElement('div');
+  note.className = 'arp-note';
+  const deg = document.createElement('div');
+  deg.className = 'arp-degree';
+  deg.textContent = '\u00A0';
+  const circle = document.createElement('div');
+  circle.className = 'arp-circle staff-btn';
+  circle.setAttribute('role', 'button');
+  circle.setAttribute('tabindex', '0');
+  circle.title = 'View on staff';
+  circle.innerHTML = `<span class="staff-btn-clef">𝄞</span>`;
+  circle.addEventListener('click', () => { if (window.MusicStaffEngine) MusicStaffEngine.openForChord(chordType); });
+  circle.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && window.MusicStaffEngine) MusicStaffEngine.openForChord(chordType); });
   note.appendChild(deg);
   note.appendChild(circle);
   container.appendChild(arrow);
