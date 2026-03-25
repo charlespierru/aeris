@@ -44,6 +44,13 @@ Requires an internet connection on first load (Google Fonts + soundfont samples 
 | Octave selector | Written pitch in octave 2, 3, or 4 |
 | Enharmonic roots | Correct diatonic spelling per key (e.g. A♭ vs G#) |
 | Extended arpeggios | 9th / 11th / 13th with proper interval colours |
+| Staff notation modal | OSMD-rendered sheet music for any scale or arpeggio |
+| Playback controls | Play, stop, loop, live tempo slider, note highlight |
+| Melodic minor rules | Ascending raised 6th/7th, descending natural minor |
+| MusicXML export | Download `.musicxml` for MuseScore, Dorico, Sibelius |
+| Ear training | "Play what you hear" dictée musicale with reveal |
+| Diatonic progressions | Playable cadences (Authentic, Plagal, Deceptive, Half) |
+| Circle of Fifths | Interactive SVG with key highlighting |
 
 ## File structure
 
@@ -51,7 +58,8 @@ Requires an internet connection on first load (Google Fonts + soundfont samples 
 aeris/
 ├── scales_arpeggios.html   # HTML structure + CDN links
 ├── styles.css              # All CSS (dark neon design system)
-└── script.js               # All JS — data, audio, rendering
+├── script.js               # All JS — data, audio, rendering
+└── music-staff-engine.js   # Staff notation module (OSMD + MusicXML)
 ```
 
 ## Design system
@@ -82,6 +90,14 @@ User clicks a note pill or arp circle
   → ensureInstrumentLoaded() — lazy AudioContext + Soundfont
   → playNote(midi) — normalises octave, plays sample
   → flashNote(el) — violet glow pulse animation
+
+User clicks staff button (𝄞)
+  → MusicStaffEngine.openForScale() / openForChord(type)
+  → AppStateReader.snapshot() — reads current DOM state
+  → MusicXMLBuilder — generates MusicXML 3.1 (single measure, no barlines)
+  → MusicStaffRenderer — OSMD renders to SVG
+  → MusicStaffPlayer — sequenced playback with cut-previous-note
+  → Note highlight + auto-scroll during playback
 ```
 
 ## External dependencies (CDN only)
@@ -90,6 +106,7 @@ User clicks a note pill or arp circle
 |---|---|
 | [Tailwind CSS](https://tailwindcss.com) | Utility classes |
 | [soundfont-player](https://github.com/danigb/soundfont-player) | FluidR3_GM audio playback |
+| [OSMD](https://opensheetmusicdisplay.org) | MusicXML → SVG staff rendering |
 | Google Fonts — DM Mono | Monospace typography |
 
 ## License
