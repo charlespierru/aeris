@@ -49,7 +49,8 @@ Requires an internet connection on first load (Google Fonts + soundfont samples 
 | Melodic minor rules | Ascending raised 6th/7th, descending natural minor |
 | MusicXML export | Download `.musicxml` for MuseScore, Dorico, Sibelius |
 | Ear training | "Play what you hear" dictée musicale with reveal |
-| Diatonic progressions | Playable cadences (Authentic, Plagal, Deceptive, Half) |
+| Diatonic progressions | Playable cadences (Authentic, Plagal, Deceptive, Half) — click any chord to open staff notation |
+| Chord staff view | Progression chords rendered on staff with arpeggio playback and plaqué (simultaneous) mode |
 | Circle of Fifths | Interactive SVG with key highlighting |
 
 ## File structure
@@ -92,7 +93,7 @@ User clicks a note pill or arp circle
   → flashNote(el) — violet glow pulse animation
 
 User clicks staff button (𝄞)
-  → MusicStaffEngine.openForScale() / openForChord(type)
+  → MusicStaffEngine.openForScale() / openForChord() / openForCustomChord()
   → AppStateReader.snapshot() — reads current DOM state
   → MusicXMLBuilder — generates MusicXML 3.1 (single measure, no barlines)
   → MusicStaffRenderer — OSMD renders to SVG
