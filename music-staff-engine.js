@@ -299,6 +299,35 @@
     return [...ascending, ...desc];
   }
 
+  /**
+   * Build a note sequence from raw concert-pitch MIDI values (for custom/progression chords).
+   * Uses flat spelling. transposeOffset converts concert → written pitch.
+   */
+  function _buildCustomChordSeq(concertMidiNotes, transposeOffset, direction) {
+    const FLAT_LETTERS = ['C','D','D','E','E','F','G','G','A','A','B','B'];
+    const FLAT_ALTERS  = [0,-1,0,-1,0,0,-1,0,-1,0,-1,0];
+
+    const ascending = concertMidiNotes.map(cMidi => {
+      let m = cMidi;
+      while (m < 45) m += 12;
+      while (m > 96) m -= 12;
+      const wMidi = m - transposeOffset;
+      const pc = ((wMidi % 12) + 12) % 12;
+      return {
+        letter: FLAT_LETTERS[pc],
+        alter:  FLAT_ALTERS[pc],
+        octave: Math.floor(wMidi / 12) - 1,
+        writtenMidi: wMidi,
+        concertMidi: m,
+      };
+    });
+
+    if (direction === 'ascending')  return ascending;
+    if (direction === 'descending') return [...ascending].reverse();
+    const desc = [...ascending].reverse().slice(1);
+    return [...ascending, ...desc];
+  }
+
   /** Découpe un tableau de notes en mesures de beatsPerMeasure notes (complétées avec des silences) */
   function _splitMeasures(notes, beatsPerMeasure) {
     const measures = [];
@@ -727,6 +756,9 @@
               <button class="staff-play-btn" id="staffPlayBtn" title="Play">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
               </button>
+              <button class="staff-chord-btn" id="staffChordBtn" title="Play chord" style="display:none">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="4" x2="6" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/></svg>
+              </button>
               <button class="staff-loop-btn" id="staffLoopBtn" title="Loop">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
               </button>
@@ -800,6 +832,10 @@
       document.getElementById('staffPlayBtn')
         .addEventListener('click', () => this._togglePlay());
 
+      // Play chord (plaqué)
+      document.getElementById('staffChordBtn')
+        .addEventListener('click', () => this._playChord());
+
       // Loop toggle
       document.getElementById('staffLoopBtn')
         .addEventListener('click', () => this._toggleLoop());
@@ -849,6 +885,20 @@
       this._open(`${this._state.root} ${this._state.def.label} — ${lbl}`);
     }
 
+    /**
+     * Opens the modal for a custom chord (e.g. from the Progressions tab).
+     * @param {object} opts
+     * @param {string}   opts.title     — display title (e.g. "Dm7 — ii")
+     * @param {number[]} opts.midiNotes — concert-pitch MIDI values of chord tones
+     * @param {string}   opts.chordName — chord name for export filename
+     */
+    openForCustomChord(opts) {
+      this._inject();
+      this._state   = AppStateReader.snapshot();
+      this._context = { type: 'custom', customMidi: opts.midiNotes, chordName: opts.chordName || opts.title };
+      this._open(opts.title);
+    }
+
     _open(title) {
       this._player.stop();
       this._resetPlayBtn();
@@ -858,6 +908,13 @@
       const mainTr  = document.getElementById('transposeSelect');
       if (staffTr && mainTr) staffTr.value = mainTr.value;
       this._syncOctaveSelect();
+
+      // Show/hide chord button based on context
+      const chordBtn = document.getElementById('staffChordBtn');
+      if (chordBtn) {
+        const isChord = this._context && this._context.type !== 'scale';
+        chordBtn.style.display = isChord ? '' : 'none';
+      }
 
       document.getElementById('staffModalTitle').textContent = title;
       document.getElementById('staffModal').classList.add('open');
@@ -969,7 +1026,14 @@
 
       // Générer le MusicXML
       let xml, seq;
-      if (type === 'chord') {
+      if (type === 'custom') {
+        const result = _buildCustomChordSeq(this._context.customMidi, state.transposeOffset, opts.direction);
+        seq = result;
+        xml = _buildXML(
+          this._context.chordName || 'Chord', state.instrumentLabel,
+          0, 'none', state.clef, [seq], opts.tempo
+        );
+      } else if (type === 'chord') {
         xml = MusicXMLBuilder.buildChord(state, chordType, opts);
         seq = _buildChordNoteSeq(state, getArpSemitones(state.scaleType, chordType), opts.octaves, opts.direction);
       } else {
@@ -1013,6 +1077,30 @@
       this._player.loop = this._loop;
     }
 
+    /** Play all chord notes simultaneously (plaqué) */
+    async _playChord() {
+      if (!this._currentSeq || !this._currentSeq.length) return;
+      await ensureInstrumentLoaded();
+      if (!currentInstrument) return;
+      const ac = getAudioCtx();
+      // Get unique MIDI notes (no duplicates from direction)
+      const seen = new Set();
+      const midiNotes = [];
+      for (const note of this._currentSeq) {
+        if (note.rest || note.concertMidi == null) continue;
+        let m = note.concertMidi;
+        while (m < 45) m += 12;
+        while (m > 96) m -= 12;
+        if (!seen.has(m)) {
+          seen.add(m);
+          midiNotes.push(m);
+        }
+      }
+      midiNotes.forEach(m => {
+        currentInstrument.play(midiToName(m), ac.currentTime, { duration: 1.8, gain: 1.4 });
+      });
+    }
+
     _toggleLoop() {
       this._loop = !this._loop;
       this._player.loop = this._loop;
@@ -1052,6 +1140,9 @@
 
     /** Ouvre la modale portée pour un accord arpégé */
     openForChord(chordType) { _modal.openForChord(chordType); },
+
+    /** Ouvre la modale portée pour un accord custom (progressions) */
+    openForCustomChord(opts) { _modal.openForCustomChord(opts); },
 
     /** Futur : exercices depuis le tab Practice */
     openForExercise(config) {

@@ -1223,6 +1223,26 @@ main {
   color: var(--amber);
 }
 
+.staff-chord-btn {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1.15rem;
+  background: rgba(74,222,128,0.12);
+  border: 1px solid rgba(74,222,128,0.35);
+  border-radius: 9999px;
+  color: var(--green);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.staff-chord-btn:hover {
+  box-shadow: 0 0 16px rgba(74,222,128,0.25);
+  transform: scale(1.02);
+}
+
 .staff-loop-btn {
   display: flex;
   align-items: center;

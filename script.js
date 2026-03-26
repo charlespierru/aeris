@@ -953,13 +953,21 @@ function renderProgressions(root, scaleType, rootIdx, baseMidi, scaleNotes) {
       <td class="prog-chord-name prog-ext">${ch.chord11Name}</td>
       <td class="prog-chord-name prog-ext">${ch.chord13Name}</td>
     `;
-    // Rendre chaque cellule d'accord cliquable
+    // Rendre chaque cellule d'accord cliquable — ouvre la modale staff
     const chordCells = tr.querySelectorAll('.prog-chord-name');
     const chordMidis  = [ch.triadMidi, ch.chord7Midi, ch.chord9Midi, ch.chord11Midi, ch.chord13Midi];
     const chordTitles = [ch.triadName, ch.chord7Name, ch.chord9Name, ch.chord11Name, ch.chord13Name];
     chordCells.forEach((cell, idx) => {
-      cell.title = `Play ${chordTitles[idx]}`;
-      cell.addEventListener('click', () => playSingleChord(chordMidis[idx]));
+      cell.title = `View ${chordTitles[idx]} on staff`;
+      cell.addEventListener('click', () => {
+        if (window.MusicStaffEngine) {
+          MusicStaffEngine.openForCustomChord({
+            title: `${chordTitles[idx]} — ${ch.roman}`,
+            midiNotes: chordMidis[idx],
+            chordName: chordTitles[idx],
+          });
+        }
+      });
     });
     tbody.appendChild(tr);
   });
