@@ -683,6 +683,7 @@
       this._currentXml   = '';
       this._currentSeq   = [];
       this._loop     = false;
+      this._dirty    = false;
       this._injected = false;
     }
 
@@ -930,6 +931,11 @@
       const el = document.getElementById('staffModal');
       if (el) el.classList.remove('open');
       document.body.style.overflow = '';
+      if (this._dirty) {
+        this._dirty = false;
+        render();
+        buildModesTab();
+      }
     }
 
     /** Populate the modal octave select from main app's valid octaves */
@@ -948,8 +954,8 @@
       if (staffOctSel && mainOctSel) {
         mainOctSel.value = staffOctSel.value;
         rootOctave = parseInt(staffOctSel.value);
-        render(); // re-render main app to stay in sync
       }
+      this._dirty = true; // main app needs re-render on close
 
       const wasPlaying = this._player.isPlaying;
       const wasLooping = this._loop;
@@ -979,8 +985,11 @@
       const mainTr  = document.getElementById('transposeSelect');
       if (staffTr && mainTr) {
         mainTr.value = staffTr.value;
-        mainTr.dispatchEvent(new Event('change'));  // trigger instrument reload in script.js
+        // Reload instrument sound without full re-render of main app
+        currentInstrument = null;
+        await ensureInstrumentLoaded();
       }
+      this._dirty = true; // main app needs re-render on close
 
       const wasPlaying = this._player.isPlaying;
       const wasLooping = this._loop;
