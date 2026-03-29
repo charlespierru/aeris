@@ -12,6 +12,8 @@ Thumbs.db
 .claude/
 
 # private
-./private
+.private
+.music-theory
+
 
 .vercel

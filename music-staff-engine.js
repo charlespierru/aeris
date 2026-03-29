@@ -210,7 +210,7 @@
           const { letter, alter } = _parseSpelling(theNotes[i]);
           seq.push({
             letter, alter,
-            octave:      Math.floor(wMidi / 12) - 1,
+            octave:      Math.floor((wMidi - alter) / 12) - 1,
             writtenMidi: wMidi,
             concertMidi: wMidi + transposeOffset,
           });
@@ -220,7 +220,7 @@
       const topWMidi = writtenBase + octaves * 12;
       const { letter: rL, alter: rA } = _parseSpelling(theNotes[0]);
       seq.push({ letter: rL, alter: rA,
-        octave: Math.floor(topWMidi / 12) - 1,
+        octave: Math.floor((topWMidi - rA) / 12) - 1,
         writtenMidi: topWMidi, concertMidi: topWMidi + transposeOffset });
       return seq;
     }
@@ -284,7 +284,7 @@
 
         ascending.push({
           letter, alter,
-          octave:      Math.floor(wMidi / 12) - 1,
+          octave:      Math.floor((wMidi - alter) / 12) - 1,
           writtenMidi: wMidi,
           concertMidi: wMidi + transposeOffset,
         });
@@ -313,10 +313,11 @@
       while (m > 96) m -= 12;
       const wMidi = m - transposeOffset;
       const pc = ((wMidi % 12) + 12) % 12;
+      const alter = FLAT_ALTERS[pc];
       return {
         letter: FLAT_LETTERS[pc],
-        alter:  FLAT_ALTERS[pc],
-        octave: Math.floor(wMidi / 12) - 1,
+        alter,
+        octave: Math.floor((wMidi - alter) / 12) - 1,
         writtenMidi: wMidi,
         concertMidi: m,
       };

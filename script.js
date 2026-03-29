@@ -74,12 +74,16 @@ async function ensureInstrumentLoaded() {
   }
 }
 
+let currentPlayNode = null; // track current note to cut on next play
+
 function playNote(midi) {
   if (!currentInstrument) return;
+  // Cut previous note
+  if (currentPlayNode) { try { currentPlayNode.stop(); } catch(e) {} currentPlayNode = null; }
   while (midi < 45) midi += 12;   // plancher : A2
   while (midi > 96) midi -= 12;   // plafond : C7
   const ac = getAudioCtx();
-  currentInstrument.play(midiToName(midi), ac.currentTime, { duration: 1.4, gain: 2 });
+  currentPlayNode = currentInstrument.play(midiToName(midi), ac.currentTime, { duration: 1.4, gain: 2 });
 }
 
 function flashNote(el) {
@@ -127,7 +131,7 @@ const ROOT_LETTER_IDX = {
 // Symmetric scales (chromatic, whole_tone, diminished) keep DISPLAY_NOTES notation.
 const DIATONIC_SCALES = new Set([
   'major','natural_minor','harmonic_minor','melodic_minor',
-  'dorian','mixolydian','lydian','phrygian'
+  'dorian','mixolydian','lydian','phrygian','locrian'
 ]);
 
 // Convert a chromatic pitch class (0–11) to a note name given a letter index.
@@ -314,6 +318,27 @@ const SCALE_DEFS = {
       { name: 'Neapolitan Harmony', desc: 'Arpeggio of ♭II major chord (e.g., Db major in C Phrygian). Practice root position and inversions.' },
       { name: 'Spanish Cadence', desc: 'i–♭VII–♭VI–♭VII–i. Play each chord as arpeggio then connect melodically.' },
       { name: 'Phrygian Dominant', desc: 'Raise the ♭3 to 3. Now play flamenco-style runs from ♭2 down to 1 with ornaments.' }
+    ]
+  },
+  locrian: {
+    label: 'Locrian Mode', badgeClass: 'badge-mode',
+    intervals: [1,2,2,1,2,2,2],
+    formula: 'H – W – W – H – W – W – W',
+    use: 'Diminished chord, theoretical; rarely used as tonal center',
+    degrees: ['1','♭2','♭3','4','♭5','♭6','♭7','8'],
+    practice: [
+      'Locrian is the darkest diatonic mode. Practice it to understand the extreme end of the brightness spectrum.',
+      'The ♭5 (tritone) means no stable perfect 5th — this is what makes Locrian uniquely unstable.',
+      'Practice over a half-diminished chord (m7♭5). This is Locrian\'s natural harmonic home.',
+      'Compare Locrian to Phrygian: only the 5th differs (♭5 vs ♮5). Isolate and hear the difference.',
+      'Use Locrian on the vii chord in jazz (e.g., Bø7 in C major → B Locrian).'
+    ],
+    technique: `<strong>The ♭5 (Tritone):</strong> The diminished 5th is Locrian's defining feature. Without a perfect 5th, the mode has no stable resting point — it constantly "wants" to resolve. Use this tension deliberately.\n\n<strong>Half-Diminished Context:</strong> Locrian is the natural mode for m7♭5 (half-diminished) chords. In jazz, the vii chord of any major key is half-diminished, making Locrian essential for complete ii-V-I vocabulary.\n\n<strong>Practical Usage:</strong> While rarely used as a standalone tonal center, Locrian appears constantly in chord-scale theory. Practice it in context: play a Bø7 chord, then improvise in B Locrian over it.`,
+    patterns: [
+      { name: '♭5 Isolation', desc: 'Play 4–♭5–4 and 5–♭5–5 (borrowing from Phrygian) to feel the ♭5 gravity.' },
+      { name: 'vii–III–VI', desc: 'Half-diminished resolving to relative major chords. Essential jazz voice-leading.' },
+      { name: 'Locrian vs Phrygian', desc: 'Alternate one phrase Locrian, one phrase Phrygian. Only the 5th changes.' },
+      { name: 'ø7 Arpeggio', desc: '1–♭3–♭5–♭7 arpeggio in all inversions. The core Locrian sound.' }
     ]
   },
   whole_tone: {
@@ -519,7 +544,7 @@ function render() {
 
   // Info cards
   const isMajor = ['major','lydian','mixolydian'].includes(scaleType);
-  const isMinor = ['natural_minor','harmonic_minor','melodic_minor','dorian','phrygian'].includes(scaleType);
+  const isMinor = ['natural_minor','harmonic_minor','melodic_minor','dorian','phrygian','locrian'].includes(scaleType);
   document.getElementById('keySignature').textContent = KEY_SIGS[root] || '—';
   if (isMajor) {
     document.getElementById('relativeKey').textContent = (RELATIVE_MINORS[root] || '—') + ' minor';
@@ -668,6 +693,7 @@ function getArpSemitones(scaleType, type) {
     mixolydian:     { triad:[0,4,7],   seventh:[0,4,7,10],   ninth:[0,4,7,10,14],   eleventh:[0,4,7,10,14,17],   thirteenth:[0,4,7,10,14,17,21] },
     lydian:         { triad:[0,4,7],   seventh:[0,4,7,11],   ninth:[0,4,7,11,14],   eleventh:[0,4,7,11,14,18],   thirteenth:[0,4,7,11,14,18,21] },
     phrygian:       { triad:[0,3,7],   seventh:[0,3,7,10],   ninth:[0,3,7,10,13],   eleventh:[0,3,7,10,13,17],   thirteenth:[0,3,7,10,13,17,20] },
+    locrian:        { triad:[0,3,6],   seventh:[0,3,6,10],   ninth:[0,3,6,10,13],   eleventh:[0,3,6,10,13,17],   thirteenth:[0,3,6,10,13,17,20] },
     whole_tone:     { triad:[0,4,8],   seventh:[0,4,8,10],   ninth:[0,4,8,10,14],   eleventh:[0,4,8,10,14,18],   thirteenth:[0,4,8,10,14,18,22] },
     diminished:     { triad:[0,3,6],   seventh:[0,3,6,9],    ninth:[0,3,6,9,13],    eleventh:[0,3,6,9,13,17],    thirteenth:[0,3,6,9,13,17,21]  },
     chromatic:      { triad:[0,4,7],   seventh:[0,4,7,11],   ninth:[0,4,7,11,14],   eleventh:[0,4,7,11,14,17],   thirteenth:[0,4,7,11,14,17,21] },
@@ -1168,6 +1194,424 @@ function updateCofHighlight() {
   });
 }
 
+// ─── Modes Tab ───────────────────────────────────────────────────────────────
+
+const MODES_INFO = [
+  { degree: 1, name: 'Ionian',     scaleKey: 'major',         descend: 0,  color: '#ffb432', abbr: 'ION' },
+  { degree: 2, name: 'Dorian',     scaleKey: 'dorian',        descend: 2,  color: '#e84393', abbr: 'DOR' },
+  { degree: 3, name: 'Phrygian',   scaleKey: 'phrygian',      descend: 4,  color: '#0096c7', abbr: 'PHR' },
+  { degree: 4, name: 'Lydian',     scaleKey: 'lydian',        descend: 5,  color: '#ffd700', abbr: 'LYD' },
+  { degree: 5, name: 'Mixolydian', scaleKey: 'mixolydian',    descend: 7,  color: '#ff6b35', abbr: 'MIX' },
+  { degree: 6, name: 'Aeolian',    scaleKey: 'natural_minor', descend: 9,  color: '#6c5ce7', abbr: 'AEO' },
+  { degree: 7, name: 'Locrian',    scaleKey: 'locrian',       descend: 11, color: '#6464a0', abbr: 'LOC' },
+];
+
+// Circle of fifths note order (same as COF_DATA)
+const MODES_COF_NOTES = ['C','G','D','A','E','B','F#/Gb','Db','Ab','Eb','Bb','F'];
+const MODES_COF_ROOT_MAP = {
+  'C':0,'G':7,'D':2,'A':9,'E':4,'B':11,
+  'F#/Gb':6,'Db':1,'Ab':8,'Eb':3,'Bb':10,'F':5
+};
+// Display-friendly names for each CoF position when used as root
+const MODES_COF_DISPLAY = ['C','G','D','A','E','B','F#','Db','Ab','Eb','Bb','F'];
+// Root select values for each CoF position
+const MODES_COF_ROOT_SELECT = ['C','G','D','A','E','B','F#','Db','Ab','Eb','Bb','F'];
+
+let modesRoot = 'C'; // local root for the modes tab
+
+function getParentMajorRoot(rootIdx, descendSemitones) {
+  return ((rootIdx - descendSemitones) % 12 + 12) % 12;
+}
+
+function noteNameFromIdx(idx) {
+  // Use flats for display except F#
+  const names = ['C','Db','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+  return names[idx % 12];
+}
+
+function buildModesTab() {
+  const container = document.getElementById('modesContent');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const rootIdx = getRootIndex(modesRoot);
+
+  // ── Section 1: Circle of Fifths & Parent Scales ──────────────────────────
+  const section1 = document.createElement('div');
+  section1.className = 'modes-circle-section';
+
+  const circleWrap = document.createElement('div');
+  circleWrap.className = 'modes-circle-wrap';
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 620 620');
+  svg.setAttribute('class', 'modes-cof-svg');
+
+  const CX = 310, CY = 310, R = 190;
+
+  // Background
+  const bgCircle = document.createElementNS(NS, 'circle');
+  bgCircle.setAttribute('cx', CX); bgCircle.setAttribute('cy', CY); bgCircle.setAttribute('r', R + 20);
+  bgCircle.setAttribute('fill', 'rgba(15,17,23,0.6)'); bgCircle.setAttribute('stroke', 'rgba(55,65,81,0.3)'); bgCircle.setAttribute('stroke-width', '1');
+  svg.appendChild(bgCircle);
+
+  // Dashed lines from root to parent scales
+  MODES_INFO.forEach(mode => {
+    if (mode.descend === 0) return; // Ionian = self
+    const parentIdx = getParentMajorRoot(rootIdx, mode.descend);
+    // Find which CoF position this parent is at
+    const cofIdx = MODES_COF_ROOT_SELECT.findIndex(n => getRootIndex(n) === parentIdx);
+    if (cofIdx < 0) return;
+    const angle = cofIdx * 30 - 90;
+    const rad = angle * Math.PI / 180;
+    const tx = CX + R * Math.cos(rad);
+    const ty = CY + R * Math.sin(rad);
+    // Find root CoF position
+    const rootCofIdx = MODES_COF_ROOT_SELECT.findIndex(n => getRootIndex(n) === rootIdx);
+    if (rootCofIdx < 0) return;
+    const rAngle = rootCofIdx * 30 - 90;
+    const rRad = rAngle * Math.PI / 180;
+    const rx = CX + R * Math.cos(rRad);
+    const ry = CY + R * Math.sin(rRad);
+
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', rx); line.setAttribute('y1', ry);
+    line.setAttribute('x2', tx); line.setAttribute('y2', ty);
+    line.setAttribute('stroke', mode.color); line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('opacity', '0.4'); line.setAttribute('stroke-dasharray', '5,4');
+    svg.appendChild(line);
+  });
+
+  // Note circles on the ring
+  MODES_COF_NOTES.forEach((note, i) => {
+    const angle = i * 30 - 90;
+    const rad = angle * Math.PI / 180;
+    const x = CX + R * Math.cos(rad);
+    const y = CY + R * Math.sin(rad);
+    const noteIdx = MODES_COF_ROOT_MAP[note];
+    const isRoot = noteIdx === rootIdx;
+
+    // Check if this note is a parent scale of the current root
+    let parentMode = null;
+    MODES_INFO.forEach(mode => {
+      const parentIdx = getParentMajorRoot(rootIdx, mode.descend);
+      if (parentIdx === noteIdx) parentMode = mode;
+    });
+
+    const g = document.createElementNS(NS, 'g');
+    g.style.cursor = 'pointer';
+
+    const circle = document.createElementNS(NS, 'circle');
+    circle.setAttribute('cx', x); circle.setAttribute('cy', y);
+
+    if (isRoot) {
+      circle.setAttribute('r', 30);
+      circle.setAttribute('fill', 'rgba(167,139,250,0.2)');
+      circle.setAttribute('stroke', 'var(--violet)'); circle.setAttribute('stroke-width', '3');
+    } else if (parentMode) {
+      circle.setAttribute('r', 26);
+      circle.setAttribute('fill', parentMode.color.replace(')', ',0.12)').replace('rgb', 'rgba').replace('#', ''));
+      // Convert hex to rgba for fill
+      const hex = parentMode.color;
+      const r2 = parseInt(hex.slice(1,3),16), g2 = parseInt(hex.slice(3,5),16), b2 = parseInt(hex.slice(5,7),16);
+      circle.setAttribute('fill', `rgba(${r2},${g2},${b2},0.12)`);
+      circle.setAttribute('stroke', parentMode.color); circle.setAttribute('stroke-width', '2');
+    } else {
+      circle.setAttribute('r', 22);
+      circle.setAttribute('fill', 'rgba(255,255,255,0.03)');
+      circle.setAttribute('stroke', 'rgba(55,65,81,0.5)'); circle.setAttribute('stroke-width', '1');
+    }
+    g.appendChild(circle);
+
+    // Note label
+    const text = document.createElementNS(NS, 'text');
+    text.setAttribute('x', x); text.setAttribute('y', y + 1);
+    text.setAttribute('text-anchor', 'middle'); text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('font-family', "'DM Mono', monospace"); text.setAttribute('font-weight', '700');
+    text.setAttribute('font-size', isRoot ? '16' : '14');
+    text.setAttribute('fill', isRoot ? 'var(--violet)' : parentMode ? parentMode.color : 'rgba(255,255,255,0.4)');
+    text.textContent = MODES_COF_DISPLAY[i];
+    g.appendChild(text);
+
+    // Full mode name label — positioned outside the circle based on angle
+    const labelMode = isRoot ? MODES_INFO[0] : parentMode; // Root = Ionian
+    if (labelMode) {
+      const lbl = document.createElementNS(NS, 'text');
+      lbl.setAttribute('font-family', "'DM Mono', monospace");
+      lbl.setAttribute('font-size', '12'); lbl.setAttribute('font-weight', '700');
+      lbl.setAttribute('fill', isRoot ? 'var(--violet)' : labelMode.color);
+      lbl.setAttribute('opacity', '0.9');
+      // Compute offset direction: push label outward from circle center
+      const normAngle = ((angle % 360) + 360) % 360; // 0=top, 90=right, 180=bottom, 270=left
+      const circleR = isRoot ? 30 : parentMode ? 26 : 22;
+      const gap = 36; // generous space between pill edge and text
+      const outR = circleR + gap;
+      const lx = x + outR * Math.cos(rad);
+      const ly = y + outR * Math.sin(rad);
+      lbl.setAttribute('dominant-baseline', 'middle');
+      // Text anchor based on position on the circle
+      if (normAngle > 30 && normAngle < 150) lbl.setAttribute('text-anchor', 'start');
+      else if (normAngle > 210 && normAngle < 330) lbl.setAttribute('text-anchor', 'end');
+      else lbl.setAttribute('text-anchor', 'middle');
+      lbl.setAttribute('x', lx); lbl.setAttribute('y', ly);
+      lbl.textContent = isRoot ? 'Ionian' : labelMode.name;
+      g.appendChild(lbl);
+    }
+
+    // Click handler — set this note as modes root
+    g.addEventListener('click', () => {
+      modesRoot = MODES_COF_ROOT_SELECT[i];
+      buildModesTab();
+    });
+    svg.appendChild(g);
+  });
+
+  // Center label
+  const centerBg = document.createElementNS(NS, 'circle');
+  centerBg.setAttribute('cx', CX); centerBg.setAttribute('cy', CY); centerBg.setAttribute('r', 42);
+  centerBg.setAttribute('fill', 'var(--surface)'); centerBg.setAttribute('stroke', 'rgba(55,65,81,0.4)'); centerBg.setAttribute('stroke-width', '1');
+  svg.appendChild(centerBg);
+
+  const tLabel = document.createElementNS(NS, 'text');
+  tLabel.setAttribute('x', CX); tLabel.setAttribute('y', CY - 10);
+  tLabel.setAttribute('text-anchor', 'middle'); tLabel.setAttribute('font-family', 'Inter, sans-serif');
+  tLabel.setAttribute('font-size', '10'); tLabel.setAttribute('fill', 'rgba(255,255,255,0.35)');
+  tLabel.setAttribute('letter-spacing', '2'); tLabel.textContent = 'TONIC';
+  svg.appendChild(tLabel);
+
+  const tRoot = document.createElementNS(NS, 'text');
+  tRoot.setAttribute('x', CX); tRoot.setAttribute('y', CY + 14);
+  tRoot.setAttribute('text-anchor', 'middle'); tRoot.setAttribute('font-family', "'DM Mono', monospace");
+  tRoot.setAttribute('font-size', '24'); tRoot.setAttribute('font-weight', '900');
+  tRoot.setAttribute('fill', 'var(--violet)'); tRoot.textContent = modesRoot;
+  svg.appendChild(tRoot);
+
+  circleWrap.appendChild(svg);
+
+  // Legend (parent scales)
+  const legend = document.createElement('div');
+  legend.className = 'modes-legend';
+  const legendTitle = document.createElement('div');
+  legendTitle.className = 'modes-legend-title';
+  legendTitle.textContent = `Parent Scales of ${modesRoot}`;
+  legend.appendChild(legendTitle);
+
+  MODES_INFO.forEach(mode => {
+    const parentIdx = getParentMajorRoot(rootIdx, mode.descend);
+    const parentName = noteNameFromIdx(parentIdx);
+    const item = document.createElement('div');
+    item.className = 'modes-legend-item';
+    const dot = document.createElement('div');
+    dot.className = 'modes-legend-dot';
+    dot.style.background = mode.color;
+    const mname = document.createElement('div');
+    mname.className = 'modes-legend-mode';
+    mname.style.color = mode.color;
+    mname.textContent = mode.name;
+    const detail = document.createElement('div');
+    detail.className = 'modes-legend-detail';
+    if (mode.descend === 0) {
+      detail.innerHTML = `Parent: <strong>${parentName} Major</strong> — ${modesRoot} = 1st degree`;
+    } else {
+      const intervals = ['','M2','M3','P4','P5','M6','M7'];
+      const iName = intervals[mode.degree - 1] || '';
+      detail.innerHTML = `Parent: <strong>${parentName} Major</strong> — ${modesRoot} = ${mode.degree}${mode.degree===1?'st':mode.degree===2?'nd':mode.degree===3?'rd':'th'} degree<br>Descend by ${iName} (${mode.descend} st)`;
+    }
+    item.appendChild(dot);
+    item.appendChild(mname);
+    item.appendChild(detail);
+    legend.appendChild(item);
+  });
+
+  section1.appendChild(circleWrap);
+  section1.appendChild(legend);
+  container.appendChild(section1);
+
+  // ── Section 2: Mode Spectrum ─────────────────────────────────────────────
+  const section2 = document.createElement('div');
+  section2.className = 'modes-spectrum';
+  const specTitle = document.createElement('div');
+  specTitle.className = 'modes-spectrum-title';
+  specTitle.textContent = `7 Modes from ${modesRoot}`;
+  section2.appendChild(specTitle);
+
+  const transposeOffset = parseInt(document.getElementById('transposeSelect').value);
+
+  MODES_INFO.forEach(mode => {
+    const def = SCALE_DEFS[mode.scaleKey];
+    const modeRootIdx = rootIdx;
+    const rootLetterIdx = ROOT_LETTER_IDX[modesRoot];
+    const notes = buildScaleNotes(modeRootIdx, def.intervals, rootLetterIdx);
+    const offsets = getCumulativeOffsets(def.intervals);
+    const baseMidi = 12 * (rootOctave + 1) + modeRootIdx + transposeOffset;
+
+    const row = document.createElement('div');
+    row.className = 'modes-row';
+    row.style.setProperty('--mode-color', mode.color);
+
+    // Mode name (clickable — plays scale and sets state)
+    const nameEl = document.createElement('div');
+    nameEl.className = 'modes-row-name';
+    nameEl.style.color = mode.color;
+    nameEl.textContent = mode.name;
+    nameEl.title = `Play & select ${modesRoot} ${mode.name}`;
+    nameEl.addEventListener('click', async () => {
+      // Set as current scale in state
+      document.getElementById('rootSelect').value = modesRoot;
+      document.getElementById('scaleTypeSelect').value = mode.scaleKey;
+      render();
+      // Play all notes + octave
+      await ensureInstrumentLoaded();
+      const bpm = 160;
+      const ms = Math.round(60000 / bpm);
+      offsets.forEach((o, i) => {
+        setTimeout(() => {
+          let m = baseMidi + o;
+          while (m < 45) m += 12;
+          while (m > 96) m -= 12;
+          playNote(m);
+          // Flash the corresponding pill
+          const pill = row.querySelectorAll('.note-pill')[i];
+          if (pill) flashNote(pill);
+        }, i * ms);
+      });
+    });
+    row.appendChild(nameEl);
+
+    // Degree label
+    const degEl = document.createElement('div');
+    degEl.className = 'modes-row-degree';
+    degEl.textContent = ['I','ii','iii','IV','V','vi','vii°'][mode.degree - 1];
+    row.appendChild(degEl);
+
+    // Note pills container — uses standard note-pill classes from design system
+    const notesWrap = document.createElement('div');
+    notesWrap.className = 'modes-notes-wrap';
+
+    const degrees = def.degrees;
+    notes.forEach((note, i) => {
+      const block = document.createElement('div');
+      block.className = 'note-block';
+      const pill = document.createElement('div');
+      const deg = degrees[i] || '8';
+      if (i === 0 || i === notes.length - 1) pill.className = 'note-pill root';
+      else if (deg.includes('5')) pill.className = 'note-pill fifth';
+      else if (deg.includes('3')) pill.className = 'note-pill third';
+      else pill.className = 'note-pill regular';
+      pill.textContent = note.replace("'", '');
+      pill.dataset.midi = baseMidi + offsets[i];
+      pill.addEventListener('click', () => handleNoteClick(baseMidi + offsets[i], pill));
+      const label = document.createElement('span');
+      label.className = 'interval-label';
+      label.textContent = deg;
+      block.appendChild(pill);
+      block.appendChild(label);
+      notesWrap.appendChild(block);
+      if (i < notes.length - 1) {
+        const sep = document.createElement('div');
+        sep.className = 'arrow-sep';
+        sep.style.marginTop = '-1rem';
+        sep.textContent = '›';
+        notesWrap.appendChild(sep);
+      }
+    });
+
+    // Staff pill — inline in the notes row, same pattern as render()
+    const staffSep = document.createElement('div');
+    staffSep.className = 'arrow-sep';
+    staffSep.style.marginTop = '-1rem';
+    staffSep.textContent = '›';
+    notesWrap.appendChild(staffSep);
+
+    const staffBlock = document.createElement('div');
+    staffBlock.className = 'note-block';
+    const staffPill = document.createElement('div');
+    staffPill.className = 'note-pill staff-btn';
+    staffPill.title = 'View on staff';
+    staffPill.setAttribute('role', 'button');
+    staffPill.setAttribute('tabindex', '0');
+    staffPill.innerHTML = '<span class="staff-btn-clef">𝄞</span>';
+    staffPill.addEventListener('click', () => {
+      document.getElementById('rootSelect').value = modesRoot;
+      document.getElementById('scaleTypeSelect').value = mode.scaleKey;
+      render();
+      if (window.MusicStaffEngine) MusicStaffEngine.openForScale();
+    });
+    const staffLabel = document.createElement('span');
+    staffLabel.className = 'interval-label';
+    staffLabel.textContent = '\u00A0';
+    staffBlock.appendChild(staffPill);
+    staffBlock.appendChild(staffLabel);
+    notesWrap.appendChild(staffBlock);
+
+    // Ear pill — inline in the notes row
+    const earSep = document.createElement('div');
+    earSep.className = 'arrow-sep';
+    earSep.style.marginTop = '-1rem';
+    earSep.textContent = '›';
+    notesWrap.appendChild(earSep);
+
+    const earBlock = document.createElement('div');
+    earBlock.className = 'note-block';
+    const earPill = document.createElement('div');
+    earPill.className = 'note-pill ear-btn';
+    earPill.title = 'Play what you hear';
+    earPill.setAttribute('role', 'button');
+    earPill.setAttribute('tabindex', '0');
+    earPill.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 0 1-7 0"/><path d="M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 0 4 0"/></svg>';
+    earPill.addEventListener('click', () => {
+      document.getElementById('rootSelect').value = modesRoot;
+      document.getElementById('scaleTypeSelect').value = mode.scaleKey;
+      render();
+      const pool = offsets.map(o => baseMidi + o);
+      openListenModal(pool, `${modesRoot} ${mode.name} — Scale`);
+    });
+    const earLabel = document.createElement('span');
+    earLabel.className = 'interval-label';
+    earLabel.textContent = '\u00A0';
+    earBlock.appendChild(earPill);
+    earBlock.appendChild(earLabel);
+    notesWrap.appendChild(earBlock);
+
+    row.appendChild(notesWrap);
+    section2.appendChild(row);
+  });
+
+  // ── Interval Reference Table ─────────────────────────────────────────────
+  const tableSection = document.createElement('div');
+  tableSection.className = 'modes-interval-section';
+  const tableTitle = document.createElement('div');
+  tableTitle.className = 'section-label';
+  tableTitle.style.marginBottom = '0.75rem';
+  tableTitle.textContent = 'Mode Intervals & Parent Scale Formula';
+  tableSection.appendChild(tableTitle);
+
+  const table = document.createElement('table');
+  table.className = 'modes-interval-table';
+  table.innerHTML = `
+    <thead><tr>
+      <th>Mode</th><th>Degree</th><th>Step Pattern</th><th>Descend by</th><th>Semitones</th><th>Parent from ${modesRoot}</th>
+    </tr></thead>
+    <tbody>${MODES_INFO.map(mode => {
+      const parentIdx = getParentMajorRoot(rootIdx, mode.descend);
+      const parentName = noteNameFromIdx(parentIdx);
+      const intervals = ['Unison','M2','M3','P4','P5','M6','M7'];
+      const iName = intervals[mode.degree - 1] || '';
+      const def = SCALE_DEFS[mode.scaleKey];
+      return `<tr style="color:${mode.color}">
+        <td>${mode.name}</td><td>${mode.degree}${mode.degree===1?'st':mode.degree===2?'nd':mode.degree===3?'rd':'th'}</td>
+        <td style="opacity:0.7">${def.formula}</td><td>${iName}</td>
+        <td class="modes-st">${mode.descend}</td><td><strong>${parentName} Major</strong></td>
+      </tr>`;
+    }).join('')}</tbody>
+  `;
+  tableSection.appendChild(table);
+  section2.appendChild(tableSection);
+
+  container.appendChild(section2);
+}
+
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1282,8 +1726,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeListenM
 
 // ─── Controls ─────────────────────────────────────────────────────────────────
 
-document.getElementById('rootSelect').addEventListener('change', render);
-document.getElementById('scaleTypeSelect').addEventListener('change', render);
+document.getElementById('rootSelect').addEventListener('change', () => { modesRoot = document.getElementById('rootSelect').value; render(); buildModesTab(); });
+document.getElementById('scaleTypeSelect').addEventListener('change', () => { render(); buildModesTab(); });
 document.getElementById('transposeSelect').addEventListener('change', () => {
   const offset = parseInt(document.getElementById('transposeSelect').value);
   const enharmonic = document.getElementById('enharmonicNote');
@@ -1297,12 +1741,14 @@ document.getElementById('transposeSelect').addEventListener('change', () => {
   currentInstrument = null;
   ensureInstrumentLoaded();
   render();
+  buildModesTab();
 });
 
 // Sélecteur d'octave
 document.getElementById('octaveSelect').addEventListener('change', e => {
   rootOctave = parseInt(e.target.value);
   render();
+  buildModesTab();
 });
 
 // ─── Dictée — câblage des contrôles ───────────────────────────────────────────
@@ -1335,4 +1781,5 @@ document.getElementById('dicteeRevealBtn').addEventListener('click', function ()
 
 // Init
 render();
-buildCof();;
+buildCof();
+buildModesTab();
