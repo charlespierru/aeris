@@ -816,6 +816,14 @@
         if (e.key === 'Escape' && this._isOpen()) this.close();
       });
 
+      // Re-render OSMD on window resize so notes reflow to new width
+      let resizeTimer;
+      window.addEventListener('resize', () => {
+        if (!this._isOpen()) return;
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => this._renderer.resize(), 200);
+      });
+
       // Background shade slider
       document.getElementById('staffBgSlider')
         .addEventListener('input', (e) => {
