@@ -308,6 +308,151 @@ assert('B# MIDI 60 → oct 3', Math.floor((60 - 1) / 12) - 1, 3);
 assert('B  MIDI 71 → oct 4', Math.floor((71 - 0) / 12) - 1, 4);
 assert('C  MIDI 72 → oct 5', Math.floor((72 - 0) / 12) - 1, 5);
 
+// ─── Test 5: Scale octave — every note ascending must be ≥ previous ───────────
+
+console.log('=== Test 5: Scale note octaves ascending (all roots × scales × octaves 2–5) ===');
+
+function buildScaleSeqWithOctaves(rootIdx, rootOctave, scaleType, rootLetterIdx) {
+  const def = SCALE_DEFS[scaleType];
+  const offsets = getCumulativeOffsets(def.intervals);
+  const scaleNotes = buildScaleNotes(rootIdx, def.intervals, rootLetterIdx);
+  const writtenBase = 12 * (rootOctave + 1) + rootIdx;
+
+  const seq = [];
+  for (let i = 0; i < scaleNotes.length - 1; i++) {
+    const wMidi = writtenBase + offsets[i];
+    const parsed = _parseSpelling(scaleNotes[i]);
+    const oct = Math.floor((wMidi - parsed.alter) / 12) - 1;
+    seq.push({ name: scaleNotes[i], letter: parsed.letter, alter: parsed.alter, octave: oct, wMidi });
+  }
+  // top note (octave repeat)
+  const topWMidi = writtenBase + 12;
+  const parsedRoot = _parseSpelling(scaleNotes[0]);
+  seq.push({ name: scaleNotes[0] + "'", letter: parsedRoot.letter, alter: parsedRoot.alter,
+    octave: Math.floor((topWMidi - parsedRoot.alter) / 12) - 1, wMidi: topWMidi });
+  return seq;
+}
+
+ROOTS.forEach(root => {
+  const rootIdx = getRootIndex(root);
+  const rootLetterIdx = ROOT_LETTER_IDX[root];
+  if (rootLetterIdx === undefined) return;
+
+  Object.keys(SCALE_DEFS).forEach(scaleType => {
+    if (!DIATONIC_SCALES.has(scaleType)) return;
+
+    [2, 3, 4, 5].forEach(rootOctave => {
+      const seq = buildScaleSeqWithOctaves(rootIdx, rootOctave, scaleType, rootLetterIdx);
+
+      // Every note's MusicXML pitch (letter+oct) must be strictly ascending
+      for (let i = 1; i < seq.length; i++) {
+        const prev = seq[i - 1];
+        const curr = seq[i];
+        // Convert to a comparable value: octave * 7 + letter index
+        const letterOrder = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+        const prevVal = prev.octave * 7 + letterOrder[prev.letter];
+        const currVal = curr.octave * 7 + letterOrder[curr.letter];
+
+        if (currVal <= prevVal) {
+          failed++;
+          failures.push({
+            name: `${root} ${scaleType} oct${rootOctave} note ${i}: ${prev.name}${prev.octave} → ${curr.name}${curr.octave}`,
+            expected: `${curr.name} should be higher than ${prev.name}${prev.octave}`,
+            actual: `${curr.name}${curr.octave} (prevVal=${prevVal}, currVal=${currVal})`
+          });
+        } else {
+          passed++;
+        }
+      }
+    });
+  });
+});
+
+// ─── Test 6: Chord octave — every chord note ascending must be ≥ previous ────
+
+console.log('=== Test 6: Chord note octaves ascending (all roots × scales × chord types) ===');
+
+function buildChordSeqWithOctaves(rootIdx, rootOctave, scaleType, rootLetterIdx, semitones) {
+  const writtenBase = 12 * (rootOctave + 1) + rootIdx;
+  const useDiatonic = DIATONIC_SCALES.has(scaleType) && rootLetterIdx !== undefined;
+
+  return semitones.map((s, i) => {
+    const wMidi = writtenBase + s;
+    const chrPc = (rootIdx + s) % 12;
+    let letter, alter;
+
+    if (useDiatonic) {
+      const arpLetterOff = i * 2;
+      const liIdx = (rootLetterIdx + arpLetterOff) % 7;
+      const nat = LETTER_CHROMATIC[liIdx];
+      let acc = ((chrPc - nat) % 12 + 12) % 12;
+      if (acc > 6) acc -= 12;
+      letter = LETTER_NAMES[liIdx];
+      alter = acc;
+    } else {
+      const FLAT_LETTERS = ['C','D','D','E','E','F','G','G','A','A','B','B'];
+      const FLAT_ALTERS = [0,-1,0,-1,0,0,-1,0,-1,0,-1,0];
+      letter = FLAT_LETTERS[chrPc];
+      alter = FLAT_ALTERS[chrPc];
+    }
+
+    return {
+      letter, alter,
+      octave: Math.floor((wMidi - alter) / 12) - 1,
+      wMidi,
+      display: letter + (alter === 1 ? '#' : alter === -1 ? 'b' : alter === 2 ? '×' : alter === -2 ? '♭♭' : '')
+    };
+  });
+}
+
+// Chord semitone definitions (same as getArpSemitones in script.js)
+const CHORD_SEMITONES = {
+  major:          { triad:[0,4,7],   seventh:[0,4,7,11] },
+  natural_minor:  { triad:[0,3,7],   seventh:[0,3,7,10] },
+  harmonic_minor: { triad:[0,3,7],   seventh:[0,3,7,11] },
+  melodic_minor:  { triad:[0,3,7],   seventh:[0,3,7,11] },
+  dorian:         { triad:[0,3,7],   seventh:[0,3,7,10] },
+  mixolydian:     { triad:[0,4,7],   seventh:[0,4,7,10] },
+  lydian:         { triad:[0,4,7],   seventh:[0,4,7,11] },
+  phrygian:       { triad:[0,3,7],   seventh:[0,3,7,10] },
+  locrian:        { triad:[0,3,6],   seventh:[0,3,6,10] },
+};
+
+ROOTS.forEach(root => {
+  const rootIdx = getRootIndex(root);
+  const rootLetterIdx = ROOT_LETTER_IDX[root];
+  if (rootLetterIdx === undefined) return;
+
+  Object.keys(CHORD_SEMITONES).forEach(scaleType => {
+    ['triad', 'seventh'].forEach(chordType => {
+      const semitones = CHORD_SEMITONES[scaleType][chordType];
+
+      [3, 4, 5].forEach(rootOctave => {
+        const seq = buildChordSeqWithOctaves(rootIdx, rootOctave, scaleType, rootLetterIdx, semitones);
+        const letterOrder = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+
+        for (let i = 1; i < seq.length; i++) {
+          const prev = seq[i - 1];
+          const curr = seq[i];
+          const prevVal = prev.octave * 7 + letterOrder[prev.letter];
+          const currVal = curr.octave * 7 + letterOrder[curr.letter];
+
+          if (currVal <= prevVal) {
+            failed++;
+            failures.push({
+              name: `${root} ${scaleType} ${chordType} oct${rootOctave}: ${prev.display}${prev.octave} → ${curr.display}${curr.octave}`,
+              expected: `ascending`,
+              actual: `${curr.display}${curr.octave} not above ${prev.display}${prev.octave} (MIDI ${prev.wMidi}→${curr.wMidi})`
+            });
+          } else {
+            passed++;
+          }
+        }
+      });
+    });
+  });
+});
+
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
 console.log('\n' + '='.repeat(60));

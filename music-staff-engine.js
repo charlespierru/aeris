@@ -924,7 +924,12 @@
     openForCustomChord(opts) {
       this._inject();
       this._state   = AppStateReader.snapshot();
-      this._context = { type: 'custom', customMidi: opts.midiNotes, chordName: opts.chordName || opts.title };
+      this._context = {
+        type: 'custom',
+        customMidi: opts.midiNotes,
+        customMidiBaseOctave: this._state.rootOctave,  // remember the octave these MIDI were built at
+        chordName: opts.chordName || opts.title
+      };
       this._open(opts.title);
     }
 
@@ -977,17 +982,23 @@
     /** Called when the user changes octave inside the modal */
     async _onOctaveChange() {
       const staffOctSel = document.getElementById('staffOctaveSelect');
-      const mainOctSel  = document.getElementById('octaveSelect');
-      if (staffOctSel && mainOctSel) {
-        mainOctSel.value = staffOctSel.value;
-        rootOctave = parseInt(staffOctSel.value);
-      }
-      this._dirty = true; // main app needs re-render on close
+      if (!staffOctSel) return;
+
+      const newOctave = parseInt(staffOctSel.value);
+      rootOctave = newOctave;
+
+      // Sync main select (for when modal closes)
+      const mainOctSel = document.getElementById('octaveSelect');
+      if (mainOctSel) mainOctSel.value = newOctave;
+
+      this._dirty = true;
+
+      // Update state directly — don't re-snapshot from DOM
+      this._state.rootOctave = newOctave;
 
       const wasPlaying = this._player.isPlaying;
       const wasLooping = this._loop;
 
-      this._state = AppStateReader.snapshot();
       await this._refresh();
 
       if (wasPlaying) {
@@ -1064,7 +1075,12 @@
       // Générer le MusicXML
       let xml, seq;
       if (type === 'custom') {
-        seq = _buildCustomChordSeq(this._context.customMidi, state, opts.direction);
+        // Shift MIDI notes when octave changed since the chord was opened
+        const octDelta = state.rootOctave - (this._context.customMidiBaseOctave || state.rootOctave);
+        const shiftedMidi = octDelta === 0
+          ? this._context.customMidi
+          : this._context.customMidi.map(m => m + octDelta * 12);
+        seq = _buildCustomChordSeq(shiftedMidi, state, opts.direction);
         xml = _buildXML(
           this._context.chordName || 'Chord', state.instrumentLabel,
           0, 'none', state.clef, [seq], opts.tempo
