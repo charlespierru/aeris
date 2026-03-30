@@ -301,9 +301,12 @@
 
   /**
    * Build a note sequence from raw concert-pitch MIDI values (for custom/progression chords).
-   * Uses flat spelling. transposeOffset converts concert → written pitch.
+   * Uses diatonic spelling when the current scale supports it, otherwise flat spelling.
    */
-  function _buildCustomChordSeq(concertMidiNotes, transposeOffset, direction) {
+  function _buildCustomChordSeq(concertMidiNotes, state, direction) {
+    const { transposeOffset, rootIdx, rootLetterIdx, scaleType } = state;
+    const useDiatonic = DIATONIC_SCALES.has(scaleType) && rootLetterIdx !== undefined;
+
     const FLAT_LETTERS = ['C','D','D','E','E','F','G','G','A','A','B','B'];
     const FLAT_ALTERS  = [0,-1,0,-1,0,0,-1,0,-1,0,-1,0];
 
@@ -312,11 +315,34 @@
       while (m < 45) m += 12;
       while (m > 96) m -= 12;
       const wMidi = m - transposeOffset;
-      const pc = ((wMidi % 12) + 12) % 12;
-      const alter = FLAT_ALTERS[pc];
+      const chrPc = ((wMidi % 12) + 12) % 12;
+
+      let letter, alter;
+      if (useDiatonic) {
+        // Find the scale degree closest to this pitch class
+        const semFromRoot = ((chrPc - rootIdx) % 12 + 12) % 12;
+        // Walk scale intervals to find matching degree
+        const intervals = SCALE_DEFS[scaleType].intervals;
+        let cumul = 0, degreeIdx = 0;
+        for (let i = 0; i < intervals.length; i++) {
+          if (cumul === semFromRoot) { degreeIdx = i; break; }
+          if (cumul + intervals[i] > semFromRoot) { degreeIdx = i; break; }
+          cumul += intervals[i];
+          degreeIdx = i + 1;
+        }
+        const liIdx = (rootLetterIdx + degreeIdx) % 7;
+        const nat   = LETTER_CHROMATIC[liIdx];
+        let acc     = ((chrPc - nat) % 12 + 12) % 12;
+        if (acc > 6) acc -= 12;
+        letter = LETTER_NAMES[liIdx];
+        alter  = acc;
+      } else {
+        letter = FLAT_LETTERS[chrPc];
+        alter  = FLAT_ALTERS[chrPc];
+      }
+
       return {
-        letter: FLAT_LETTERS[pc],
-        alter,
+        letter, alter,
         octave: Math.floor((wMidi - alter) / 12) - 1,
         writtenMidi: wMidi,
         concertMidi: m,
@@ -1037,11 +1063,10 @@
       // Générer le MusicXML
       let xml, seq;
       if (type === 'custom') {
-        const result = _buildCustomChordSeq(this._context.customMidi, state.transposeOffset, opts.direction);
-        seq = result;
+        seq = _buildCustomChordSeq(this._context.customMidi, state, opts.direction);
         xml = _buildXML(
           this._context.chordName || 'Chord', state.instrumentLabel,
-          0, 'none', state.clef, [seq], opts.tempo
+          state.keyFifths, state.keyMode, state.clef, [seq], opts.tempo
         );
       } else if (type === 'chord') {
         xml = MusicXMLBuilder.buildChord(state, chordType, opts);
