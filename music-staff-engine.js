@@ -300,12 +300,27 @@
   }
 
   /**
+   * Build a map from pitch class (0–11) to scale degree index (0–6) for a diatonic scale.
+   */
+  function _buildPcToDegreeMap(rootIdx, scaleType) {
+    const intervals = SCALE_DEFS[scaleType].intervals;
+    const map = {};
+    let cumul = 0;
+    for (let d = 0; d < intervals.length; d++) {
+      map[(rootIdx + cumul) % 12] = d;
+      cumul += intervals[d];
+    }
+    return map;
+  }
+
+  /**
    * Build a note sequence from raw concert-pitch MIDI values (for custom/progression chords).
-   * Uses diatonic spelling when the current scale supports it, otherwise flat spelling.
+   * Uses diatonic spelling via pc→degree map when available, otherwise flat spelling.
    */
   function _buildCustomChordSeq(concertMidiNotes, state, direction) {
     const { transposeOffset, rootIdx, rootLetterIdx, scaleType } = state;
     const useDiatonic = DIATONIC_SCALES.has(scaleType) && rootLetterIdx !== undefined;
+    const pcToDegree  = useDiatonic ? _buildPcToDegreeMap(rootIdx, scaleType) : null;
 
     const FLAT_LETTERS = ['C','D','D','E','E','F','G','G','A','A','B','B'];
     const FLAT_ALTERS  = [0,-1,0,-1,0,0,-1,0,-1,0,-1,0];
@@ -318,24 +333,10 @@
       const chrPc = ((wMidi % 12) + 12) % 12;
 
       let letter, alter;
-      if (useDiatonic) {
-        // Find the scale degree closest to this pitch class
-        const semFromRoot = ((chrPc - rootIdx) % 12 + 12) % 12;
-        // Walk scale intervals to find matching degree
-        const intervals = SCALE_DEFS[scaleType].intervals;
-        let cumul = 0, degreeIdx = 0;
-        for (let i = 0; i < intervals.length; i++) {
-          if (cumul === semFromRoot) { degreeIdx = i; break; }
-          if (cumul + intervals[i] > semFromRoot) { degreeIdx = i; break; }
-          cumul += intervals[i];
-          degreeIdx = i + 1;
-        }
-        const liIdx = (rootLetterIdx + degreeIdx) % 7;
-        const nat   = LETTER_CHROMATIC[liIdx];
-        let acc     = ((chrPc - nat) % 12 + 12) % 12;
-        if (acc > 6) acc -= 12;
-        letter = LETTER_NAMES[liIdx];
-        alter  = acc;
+      if (pcToDegree && pcToDegree[chrPc] !== undefined) {
+        const degree = pcToDegree[chrPc];
+        const spelled = spellNote(chrPc, rootLetterIdx + degree);
+        ({ letter, alter } = _parseSpelling(spelled));
       } else {
         letter = FLAT_LETTERS[chrPc];
         alter  = FLAT_ALTERS[chrPc];
@@ -1066,7 +1067,7 @@
         seq = _buildCustomChordSeq(this._context.customMidi, state, opts.direction);
         xml = _buildXML(
           this._context.chordName || 'Chord', state.instrumentLabel,
-          state.keyFifths, state.keyMode, state.clef, [seq], opts.tempo
+          0, 'none', state.clef, [seq], opts.tempo
         );
       } else if (type === 'chord') {
         xml = MusicXMLBuilder.buildChord(state, chordType, opts);
