@@ -218,6 +218,52 @@
     transposeEls.forEach(el => el.remove());
   }
 
+  // ── MusicXML validation ──────────────────────────────────────────────────────
+
+  /**
+   * Parse and validate a MusicXML string.
+   * Throws a descriptive error if the file is not valid MusicXML.
+   * @param {string} xmlString
+   * @returns {Document} parsed XML DOM
+   */
+  function _validateMusicXML(xmlString) {
+    // 1. Must be non-empty
+    if (!xmlString || !xmlString.trim()) {
+      throw new Error('File is empty');
+    }
+
+    // 2. Must parse as XML
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlString, 'application/xml');
+    if (doc.querySelector('parsererror')) {
+      throw new Error('Not a valid XML file');
+    }
+
+    // 3. Must be MusicXML (score-partwise or score-timewise root)
+    const root = doc.documentElement.tagName;
+    if (root !== 'score-partwise' && root !== 'score-timewise') {
+      throw new Error('Not a MusicXML file (expected <score-partwise> or <score-timewise>, got <' + root + '>)');
+    }
+
+    // 4. Must have at least one part
+    if (!doc.querySelector('part')) {
+      throw new Error('MusicXML has no <part> element');
+    }
+
+    // 5. Must have at least one measure with notes or rests
+    if (!doc.querySelector('part > measure')) {
+      throw new Error('MusicXML has no measures');
+    }
+
+    // 6. Must have attributes (key, clef) in the first measure
+    const firstMeasure = doc.querySelector('part > measure');
+    if (!firstMeasure.querySelector('attributes')) {
+      throw new Error('First measure has no <attributes> (missing clef/key/time)');
+    }
+
+    return doc;
+  }
+
   // ── UI Controller ───────────────────────────────────────────────────────────
 
   class TransposeUI {
@@ -349,13 +395,7 @@
 
       try {
         const xmlString = await loadFile(file);
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(xmlString, 'application/xml');
-
-        // Check for parse errors
-        if (doc.querySelector('parsererror')) {
-          throw new Error('Invalid MusicXML file');
-        }
+        const doc = _validateMusicXML(xmlString);
 
         this._originalXml = xmlString;
         this._originalDoc = doc;
@@ -384,7 +424,14 @@
 
       } catch (err) {
         console.error('TransposeEngine: load error', err);
-        this._showError('Could not load file: ' + err.message);
+        // Reset to clean state
+        this._originalXml = null;
+        this._originalDoc = null;
+        this._transposedXml = null;
+        document.getElementById('transposeScores').style.display = 'none';
+        document.getElementById('transposeEmpty').style.display = '';
+        document.getElementById('transposeFilename').textContent = file.name;
+        this._showError(err.message);
       }
     }
 
@@ -498,8 +545,8 @@
         box = document.createElement('div');
         box.id = 'transposeErrorBox';
         box.className = 'transpose-error-box';
-        const container = document.getElementById('transposeScores');
-        if (container) container.prepend(box);
+        const container = document.getElementById('transposeContent');
+        if (container) container.appendChild(box);
       }
       box.textContent = msg;
       box.style.display = '';
