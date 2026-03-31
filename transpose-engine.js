@@ -384,7 +384,7 @@
 
       } catch (err) {
         console.error('TransposeEngine: load error', err);
-        document.getElementById('transposeFilename').textContent = 'Error: ' + err.message;
+        this._showError('Could not load file: ' + err.message);
       }
     }
 
@@ -439,34 +439,40 @@
     async _transposeAndRender() {
       if (!this._originalXml) return;
 
-      const sourceIdx = parseInt(document.getElementById('transposeSourceSelect').value);
-      const targetIdx = parseInt(document.getElementById('transposeTargetSelect').value);
-      const source = INSTRUMENTS[sourceIdx];
-      const target = INSTRUMENTS[targetIdx];
+      try {
+        const sourceIdx = parseInt(document.getElementById('transposeSourceSelect').value);
+        const targetIdx = parseInt(document.getElementById('transposeTargetSelect').value);
+        const source = INSTRUMENTS[sourceIdx];
+        const target = INSTRUMENTS[targetIdx];
 
-      const semitoneShift = source.offset - target.offset;
+        const semitoneShift = source.offset - target.offset;
 
-      // Clone the original DOM
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(this._originalXml, 'application/xml');
+        // Clone the original DOM
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(this._originalXml, 'application/xml');
 
-      // Sight-transposition: change clef + key only, notes stay in place
-      const readingClef = target.readingClef; // null if same pitch (concert)
-      sightTranspose(doc, semitoneShift, readingClef);
+        // Sight-transposition: change clef + key only, notes stay in place
+        const readingClef = target.readingClef; // null if same pitch (concert)
+        sightTranspose(doc, semitoneShift, readingClef);
 
-      // Serialize
-      const serializer = new XMLSerializer();
-      this._transposedXml = serializer.serializeToString(doc);
+        // Serialize
+        const serializer = new XMLSerializer();
+        this._transposedXml = serializer.serializeToString(doc);
 
-      // Update title
-      const clefLabel = readingClef
-        ? ` — read in ${readingClef} clef`
-        : '';
-      document.getElementById('transposeTargetTitle').textContent =
-        `Sight-read for ${target.label}${clefLabel}`;
+        // Update title
+        const clefLabel = readingClef
+          ? ` — read in ${readingClef} clef`
+          : '';
+        document.getElementById('transposeTargetTitle').textContent =
+          `Sight-read for ${target.label}${clefLabel}`;
 
-      // Render
-      await this._renderTransposed(this._transposedXml);
+        // Render
+        this._hideError();
+        await this._renderTransposed(this._transposedXml);
+      } catch (err) {
+        console.error('TransposeEngine: transpose error', err);
+        this._showError('Transposition failed — the file may be incompatible. (' + err.message + ')');
+      }
     }
 
     async _onSettingsChange() {
@@ -484,6 +490,24 @@
       if (collapsed && this._osmdOriginal) {
         try { this._osmdOriginal.render(); } catch (_) {}
       }
+    }
+
+    _showError(msg) {
+      let box = document.getElementById('transposeErrorBox');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'transposeErrorBox';
+        box.className = 'transpose-error-box';
+        const container = document.getElementById('transposeScores');
+        if (container) container.prepend(box);
+      }
+      box.textContent = msg;
+      box.style.display = '';
+    }
+
+    _hideError() {
+      const box = document.getElementById('transposeErrorBox');
+      if (box) box.style.display = 'none';
     }
 
     _export() {

@@ -1839,6 +1839,16 @@ main {
   opacity: 0.6;
 }
 
+.transpose-error-box {
+  padding: 0.8rem 1.2rem;
+  background: rgba(244, 67, 54, 0.12);
+  border: 1px solid rgba(244, 67, 54, 0.4);
+  border-radius: 8px;
+  color: #f44336;
+  font-size: 0.85rem;
+  font-family: 'DM Mono', monospace;
+}
+
 #transposeContent.drag-over {
   outline: 2px dashed var(--violet);
   outline-offset: -4px;
