@@ -200,15 +200,14 @@
 
     // 4. Change clef
     const clefCfg = CLEF_CONFIG[readingClef];
-    if (clefCfg) {
-      const clefEls = xmlDoc.querySelectorAll('clef');
-      clefEls.forEach(clefEl => {
-        const signEl = clefEl.querySelector('sign');
-        const lineEl = clefEl.querySelector('line');
-        if (signEl) signEl.textContent = clefCfg.sign;
-        if (lineEl) lineEl.textContent = clefCfg.line;
-      });
-    }
+    if (!clefCfg) return; // unknown target clef — abort safely
+    const clefEls = xmlDoc.querySelectorAll('clef');
+    clefEls.forEach(clefEl => {
+      const signEl = clefEl.querySelector('sign');
+      const lineEl = clefEl.querySelector('line');
+      if (signEl) signEl.textContent = clefCfg.sign;
+      if (lineEl) lineEl.textContent = clefCfg.line;
+    });
 
     // 5. Remove <accidental> — OSMD recalculates from new key + alter
     const accidentals = xmlDoc.querySelectorAll('accidental');
