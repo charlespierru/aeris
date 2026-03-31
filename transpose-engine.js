@@ -44,10 +44,21 @@
   };
 
   const STEP_SEMITONE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const STEP_IDX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+  const IDX_STEP = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
   // Circle-of-fifths shift per semitone: semitone n → fifths shift
   // +1 semi = +7 fifths (mod 12), wrapped to [-5,6]
   const SEMI_TO_FIFTHS_SHIFT = [0, 7, 2, -3, 4, -1, 6, 1, -4, 3, -2, 5];
+
+  // Pitch at line 1 for each clef (used for visual compensation)
+  const CLEF_LINE1 = {
+    treble: { stepIdx: 2, octave: 4 },  // E4
+    bass:   { stepIdx: 4, octave: 2 },  // G2
+    alto:   { stepIdx: 3, octave: 3 },  // F3
+    tenor:  { stepIdx: 1, octave: 3 },  // D3
+    mezzo:  { stepIdx: 5, octave: 3 },  // A3
+  };
 
   // ── File loading ────────────────────────────────────────────────────────────
 
@@ -120,16 +131,63 @@
   // The key signature adjustment = fifths shift for the transposition interval.
 
   /**
+   * Detect the source clef name from a MusicXML DOM.
+   * Returns 'treble', 'bass', 'alto', 'tenor', 'mezzo', or 'treble' as fallback.
+   */
+  function _detectSourceClef(xmlDoc) {
+    const clefEl = xmlDoc.querySelector('part > measure > attributes > clef');
+    if (!clefEl) return 'treble';
+    const sign = (clefEl.querySelector('sign')?.textContent || 'G').trim();
+    const line = parseInt(clefEl.querySelector('line')?.textContent || '2');
+    if (sign === 'G') return 'treble';
+    if (sign === 'F') return 'bass';
+    if (sign === 'C' && line === 3) return 'alto';
+    if (sign === 'C' && line === 4) return 'tenor';
+    if (sign === 'C' && line === 2) return 'mezzo';
+    return 'treble';
+  }
+
+  /**
    * Sight-transpose a MusicXML DOM in-place.
-   * Notes stay at their original positions — only clef and key signature change.
-   * This creates a sight-reading exercise for the target instrument.
+   * The CLEF and KEY SIGNATURE change, and pitches are compensated so that
+   * every note stays at the exact same visual position on the staff.
+   * The musician reads the same visual pattern but in a new clef context.
    *
    * @param {Document} xmlDoc         — parsed MusicXML DOM
-   * @param {number}   semitoneShift  — semitones between source and target (sourceOffset - targetOffset)
+   * @param {number}   semitoneShift  — semitones for key sig (sourceOffset - targetOffset)
    * @param {string}   readingClef    — the clef to substitute ('tenor','alto','mezzo', etc.)
    */
   function sightTranspose(xmlDoc, semitoneShift, readingClef) {
-    // 1. Update key signature (same logic as full transposition)
+    if (!readingClef) return; // no clef change needed (e.g. concert → concert)
+
+    // 1. Detect source clef and compute diatonic compensation
+    const sourceClef = _detectSourceClef(xmlDoc);
+    const src = CLEF_LINE1[sourceClef];
+    const tgt = CLEF_LINE1[readingClef];
+    if (!src || !tgt) return;
+
+    const stepShift = tgt.stepIdx - src.stepIdx;
+    const octShift  = tgt.octave  - src.octave;
+
+    // 2. Compensate all <pitch> elements so notes stay visually in place
+    const pitchEls = xmlDoc.querySelectorAll('pitch');
+    pitchEls.forEach(pitchEl => {
+      const stepEl   = pitchEl.querySelector('step');
+      const octaveEl = pitchEl.querySelector('octave');
+      // alter stays untouched — the accidental remains visually the same
+
+      const origStepIdx = STEP_IDX[stepEl.textContent.trim()];
+      const origOctave  = parseInt(octaveEl.textContent);
+
+      const newStepIdxRaw = origStepIdx + stepShift;
+      const newStepIdx    = ((newStepIdxRaw % 7) + 7) % 7;
+      const carry         = Math.floor(newStepIdxRaw / 7);
+
+      stepEl.textContent   = IDX_STEP[newStepIdx];
+      octaveEl.textContent = origOctave + octShift + carry;
+    });
+
+    // 3. Update key signature
     const fifthsShift = SEMI_TO_FIFTHS_SHIFT[((semitoneShift % 12) + 12) % 12];
     const keyEls = xmlDoc.querySelectorAll('fifths');
     keyEls.forEach(el => {
@@ -140,25 +198,23 @@
       el.textContent = nf;
     });
 
-    // 2. Change clef
-    if (readingClef) {
-      const clefCfg = CLEF_CONFIG[readingClef];
-      if (clefCfg) {
-        const clefEls = xmlDoc.querySelectorAll('clef');
-        clefEls.forEach(clefEl => {
-          const signEl = clefEl.querySelector('sign');
-          const lineEl = clefEl.querySelector('line');
-          if (signEl) signEl.textContent = clefCfg.sign;
-          if (lineEl) lineEl.textContent = clefCfg.line;
-        });
-      }
+    // 4. Change clef
+    const clefCfg = CLEF_CONFIG[readingClef];
+    if (clefCfg) {
+      const clefEls = xmlDoc.querySelectorAll('clef');
+      clefEls.forEach(clefEl => {
+        const signEl = clefEl.querySelector('sign');
+        const lineEl = clefEl.querySelector('line');
+        if (signEl) signEl.textContent = clefCfg.sign;
+        if (lineEl) lineEl.textContent = clefCfg.line;
+      });
     }
 
-    // 3. Remove <accidental> — OSMD recalculates from new key + alter
+    // 5. Remove <accidental> — OSMD recalculates from new key + alter
     const accidentals = xmlDoc.querySelectorAll('accidental');
     accidentals.forEach(el => el.remove());
 
-    // 4. Remove <transpose> — the exercise shows written pitch in the new clef
+    // 6. Remove <transpose>
     const transposeEls = xmlDoc.querySelectorAll('transpose');
     transposeEls.forEach(el => el.remove());
   }
