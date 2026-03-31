@@ -17,20 +17,22 @@
 
   // ── Instrument definitions ──────────────────────────────────────────────────
 
+  // readingClef: the clef substitution for sight-transposition exercises
+  // When reading a treble-clef concert pitch part for a transposing instrument,
+  // the musician reads in this clef to mentally produce the transposition.
   const INSTRUMENTS = [
-    { offset:  0, label: 'Concert Pitch (C)',      clef: 'treble', sf: 'flute',        group: 'C'  },
-    { offset:  0, label: 'Flute',                  clef: 'treble', sf: 'flute',        group: 'C'  },
-    { offset:  0, label: 'Oboe',                   clef: 'treble', sf: 'oboe',         group: 'C'  },
-    { offset:  0, label: 'Bassoon',                clef: 'bass',   sf: 'bassoon',      group: 'C'  },
-    { offset:  0, label: 'Tuba (C)',               clef: 'bass',   sf: 'tuba',         group: 'C'  },
-    { offset: -2, label: 'Clarinet (B\u266D)',     clef: 'treble', sf: 'clarinet',     group: 'Bb' },
-    { offset: -2, label: 'Trumpet (B\u266D)',      clef: 'treble', sf: 'trumpet',      group: 'Bb' },
-    { offset: -2, label: 'Tenor Sax (B\u266D)',    clef: 'treble', sf: 'tenor_sax',    group: 'Bb' },
-    { offset: -2, label: 'Trombone (B\u266D treble)', clef: 'treble', sf: 'trombone',  group: 'Bb' },
-    { offset: -2, label: 'Trombone (bass clef)',   clef: 'bass',   sf: 'trombone',     group: 'Bb' },
-    { offset: -9, label: 'Alto Sax (E\u266D)',     clef: 'treble', sf: 'alto_sax',     group: 'Eb' },
-    { offset: -9, label: 'Baritone Sax (E\u266D)', clef: 'treble', sf: 'baritone_sax', group: 'Eb' },
-    { offset: -7, label: 'French Horn (F)',        clef: 'treble', sf: 'french_horn',  group: 'F'  },
+    { offset:  0, label: 'Concert Pitch (C)',      clef: 'treble', readingClef: null,    sf: 'flute',        group: 'C'  },
+    { offset:  0, label: 'Flute',                  clef: 'treble', readingClef: null,    sf: 'flute',        group: 'C'  },
+    { offset:  0, label: 'Oboe',                   clef: 'treble', readingClef: null,    sf: 'oboe',         group: 'C'  },
+    { offset:  0, label: 'Bassoon',                clef: 'bass',   readingClef: null,    sf: 'bassoon',      group: 'C'  },
+    { offset:  0, label: 'Tuba (C)',               clef: 'bass',   readingClef: null,    sf: 'tuba',         group: 'C'  },
+    { offset: -2, label: 'Clarinet (B\u266D)',     clef: 'treble', readingClef: 'tenor', sf: 'clarinet',     group: 'Bb' },
+    { offset: -2, label: 'Trumpet (B\u266D)',      clef: 'treble', readingClef: 'tenor', sf: 'trumpet',      group: 'Bb' },
+    { offset: -2, label: 'Tenor Sax (B\u266D)',    clef: 'treble', readingClef: 'tenor', sf: 'tenor_sax',    group: 'Bb' },
+    { offset: -2, label: 'Trombone (B\u266D)',     clef: 'bass',   readingClef: 'tenor', sf: 'trombone',     group: 'Bb' },
+    { offset: -9, label: 'Alto Sax (E\u266D)',     clef: 'treble', readingClef: 'alto',  sf: 'alto_sax',     group: 'Eb' },
+    { offset: -9, label: 'Baritone Sax (E\u266D)', clef: 'treble', readingClef: 'alto',  sf: 'baritone_sax', group: 'Eb' },
+    { offset: -7, label: 'French Horn (F)',        clef: 'treble', readingClef: 'mezzo', sf: 'french_horn',  group: 'F'  },
   ];
 
   const CLEF_CONFIG = {
@@ -38,6 +40,7 @@
     bass:   { sign: 'F', line: 4 },
     alto:   { sign: 'C', line: 3 },
     tenor:  { sign: 'C', line: 4 },
+    mezzo:  { sign: 'C', line: 2 },
   };
 
   const STEP_SEMITONE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
@@ -102,24 +105,32 @@
     return { offset: 0, detected: false };
   }
 
-  // ── Transposition core ──────────────────────────────────────────────────────
+  // ── Sight-transposition clef mapping ──────────────────────────────────────
+  //
+  // For sight-reading transposition exercises: notes stay in place on the staff,
+  // only the CLEF and KEY SIGNATURE change. The musician reads the same note
+  // positions but in a different clef, which produces the transposition mentally.
+  //
+  // Mapping: sourceClef + interval → reading clef
+  // From treble clef concert pitch:
+  //   Bb (up M2):  read in tenor clef (C4)    + 2 sharps
+  //   Eb (up M6):  read in alto clef (C3)     + 3 flats  (actually: -9 → +3 on fifths = -3)
+  //   F  (up P5):  read in mezzo-soprano (C2) + 1 flat
+  //
+  // The key signature adjustment = fifths shift for the transposition interval.
 
   /**
-   * Transpose a MusicXML DOM in-place.
-   * @param {Document} xmlDoc     — parsed MusicXML DOM
-   * @param {number}   semitoneShift — semitones to shift (positive = up)
-   * @param {string}   targetClef — 'treble'|'bass'|'alto'|'tenor'
-   * @param {number}   targetOffset — target instrument offset for <transpose> element
+   * Sight-transpose a MusicXML DOM in-place.
+   * Notes stay at their original positions — only clef and key signature change.
+   * This creates a sight-reading exercise for the target instrument.
+   *
+   * @param {Document} xmlDoc         — parsed MusicXML DOM
+   * @param {number}   semitoneShift  — semitones between source and target (sourceOffset - targetOffset)
+   * @param {string}   readingClef    — the clef to substitute ('tenor','alto','mezzo', etc.)
    */
-  function transpose(xmlDoc, semitoneShift, targetClef, targetOffset) {
-    if (semitoneShift === 0 && targetClef === null) return;
-
-    // 1. Compute new key fifths for context-aware spelling
-    const firstKey = xmlDoc.querySelector('part > measure > attributes > key > fifths');
-    const baseKeyFifths = firstKey ? parseInt(firstKey.textContent) : 0;
+  function sightTranspose(xmlDoc, semitoneShift, readingClef) {
+    // 1. Update key signature (same logic as full transposition)
     const fifthsShift = SEMI_TO_FIFTHS_SHIFT[((semitoneShift % 12) + 12) % 12];
-
-    // 2. Update all <key> elements
     const keyEls = xmlDoc.querySelectorAll('fifths');
     keyEls.forEach(el => {
       const old = parseInt(el.textContent);
@@ -129,67 +140,9 @@
       el.textContent = nf;
     });
 
-    // 3. Compute target key fifths for spelling context
-    let targetKeyFifths = baseKeyFifths + fifthsShift;
-    while (targetKeyFifths > 6)  targetKeyFifths -= 12;
-    while (targetKeyFifths < -6) targetKeyFifths += 12;
-
-    // Build a spelling helper: for a given key, which letter index maps best?
-    // Use the circle of fifths to determine the "root" and derive letter preferences
-    const keyRootIdx = _fifthsToRootIdx(targetKeyFifths);
-    const keyRootLetterIdx = _bestLetterIdx(keyRootIdx, targetKeyFifths >= 0);
-
-    // 4. Transpose all <pitch> elements
-    const pitchEls = xmlDoc.querySelectorAll('pitch');
-    pitchEls.forEach(pitchEl => {
-      const stepEl   = pitchEl.querySelector('step');
-      let   alterEl  = pitchEl.querySelector('alter');
-      const octaveEl = pitchEl.querySelector('octave');
-
-      const step   = stepEl.textContent.trim();
-      const alter  = alterEl ? parseFloat(alterEl.textContent) : 0;
-      const octave = parseInt(octaveEl.textContent);
-
-      // Convert to absolute semitone
-      const absSemi = STEP_SEMITONE[step] + alter + octave * 12;
-      const newSemi = absSemi + semitoneShift;
-
-      // New octave and pitch class
-      const newOctave = Math.floor(newSemi / 12);
-      const newPc = ((newSemi % 12) + 12) % 12;
-
-      // Spell using diatonic context from key signature
-      const degree = _pcToDegree(newPc, keyRootIdx);
-      const letterIdx = keyRootLetterIdx + degree;
-      const spelled = spellNote(newPc, letterIdx);
-      const parsed = _parseSpelled(spelled);
-
-      stepEl.textContent = parsed.step;
-
-      // Correct octave for enharmonics (Cb, B#)
-      const correctedOctave = Math.floor((newSemi - parsed.alter) / 12);
-      octaveEl.textContent = correctedOctave;
-
-      if (parsed.alter !== 0) {
-        if (alterEl) {
-          alterEl.textContent = parsed.alter;
-        } else {
-          alterEl = xmlDoc.createElement('alter');
-          alterEl.textContent = parsed.alter;
-          pitchEl.insertBefore(alterEl, octaveEl);
-        }
-      } else if (alterEl) {
-        alterEl.remove();
-      }
-    });
-
-    // 5. Remove stale <accidental> elements — let OSMD recalculate
-    const accidentals = xmlDoc.querySelectorAll('accidental');
-    accidentals.forEach(el => el.remove());
-
-    // 6. Update <clef> elements
-    if (targetClef) {
-      const clefCfg = CLEF_CONFIG[targetClef];
+    // 2. Change clef
+    if (readingClef) {
+      const clefCfg = CLEF_CONFIG[readingClef];
       if (clefCfg) {
         const clefEls = xmlDoc.querySelectorAll('clef');
         clefEls.forEach(clefEl => {
@@ -201,99 +154,13 @@
       }
     }
 
-    // 7. Update or remove <transpose> elements
+    // 3. Remove <accidental> — OSMD recalculates from new key + alter
+    const accidentals = xmlDoc.querySelectorAll('accidental');
+    accidentals.forEach(el => el.remove());
+
+    // 4. Remove <transpose> — the exercise shows written pitch in the new clef
     const transposeEls = xmlDoc.querySelectorAll('transpose');
-    transposeEls.forEach(el => {
-      if (targetOffset === 0) {
-        el.remove();
-      } else {
-        let chrEl = el.querySelector('chromatic');
-        let diaEl = el.querySelector('diatonic');
-        const chrVal = -targetOffset;
-        if (chrEl) {
-          chrEl.textContent = chrVal;
-        } else {
-          chrEl = xmlDoc.createElement('chromatic');
-          chrEl.textContent = chrVal;
-          el.appendChild(chrEl);
-        }
-        // Approximate diatonic from chromatic
-        const diaVal = _chromaticToDiatonic(chrVal);
-        if (diaEl) {
-          diaEl.textContent = diaVal;
-        } else {
-          diaEl = xmlDoc.createElement('diatonic');
-          diaEl.textContent = diaVal;
-          el.insertBefore(diaEl, chrEl);
-        }
-      }
-    });
-
-    // If target is transposing and no <transpose> existed, add one
-    if (targetOffset !== 0 && transposeEls.length === 0) {
-      const attrs = xmlDoc.querySelector('part > measure > attributes');
-      if (attrs) {
-        const trEl = xmlDoc.createElement('transpose');
-        const diaEl = xmlDoc.createElement('diatonic');
-        diaEl.textContent = _chromaticToDiatonic(-targetOffset);
-        const chrEl = xmlDoc.createElement('chromatic');
-        chrEl.textContent = -targetOffset;
-        trEl.appendChild(diaEl);
-        trEl.appendChild(chrEl);
-        attrs.appendChild(trEl);
-      }
-    }
-  }
-
-  // ── Spelling helpers ────────────────────────────────────────────────────────
-
-  /** Map fifths count to chromatic root index */
-  function _fifthsToRootIdx(fifths) {
-    // fifths on circle: 0=C, 1=G, 2=D, -1=F, -2=Bb, etc.
-    return ((fifths * 7) % 12 + 12) % 12;
-  }
-
-  /** Best letter index for a root, preferring sharps or flats */
-  function _bestLetterIdx(rootIdx, preferSharp) {
-    const SHARP_MAP = { 0:0, 1:0, 2:1, 3:1, 4:2, 5:3, 6:3, 7:4, 8:4, 9:5, 10:5, 11:6 };
-    const FLAT_MAP  = { 0:0, 1:1, 2:1, 3:2, 4:2, 5:3, 6:4, 7:4, 8:5, 9:5, 10:6, 11:6 };
-    return preferSharp ? SHARP_MAP[rootIdx] : FLAT_MAP[rootIdx];
-  }
-
-  /** Find scale degree (0–6) for a pitch class relative to a major-scale root */
-  function _pcToDegree(pc, rootIdx) {
-    const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
-    const rel = ((pc - rootIdx) % 12 + 12) % 12;
-    // Find closest degree
-    let bestDeg = 0, bestDist = 99;
-    for (let d = 0; d < 7; d++) {
-      const dist = Math.min(
-        Math.abs(rel - MAJOR_INTERVALS[d]),
-        12 - Math.abs(rel - MAJOR_INTERVALS[d])
-      );
-      if (dist < bestDist) { bestDist = dist; bestDeg = d; }
-    }
-    return bestDeg;
-  }
-
-  /** Parse a spelled note ("F#", "Bb", "C×", "B♭♭") → { step, alter } */
-  function _parseSpelled(name) {
-    const step = name[0];
-    const acc  = name.slice(1);
-    const alter = acc === '#'  ?  1
-                : acc === 'b'  ? -1
-                : acc === '\u00D7' || acc === '×' ?  2
-                : acc.includes('\u266D\u266D')     ? -2
-                : 0;
-    return { step, alter };
-  }
-
-  /** Approximate diatonic interval from chromatic interval */
-  function _chromaticToDiatonic(chromatic) {
-    const abs = Math.abs(chromatic);
-    const CHROM_TO_DIA = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6];
-    const dia = CHROM_TO_DIA[abs % 12] + Math.floor(abs / 12) * 7;
-    return chromatic >= 0 ? dia : -dia;
+    transposeEls.forEach(el => el.remove());
   }
 
   // ── UI Controller ───────────────────────────────────────────────────────────
@@ -528,16 +395,20 @@
       const parser = new DOMParser();
       const doc = parser.parseFromString(this._originalXml, 'application/xml');
 
-      // Transpose
-      transpose(doc, semitoneShift, target.clef, target.offset);
+      // Sight-transposition: change clef + key only, notes stay in place
+      const readingClef = target.readingClef; // null if same pitch (concert)
+      sightTranspose(doc, semitoneShift, readingClef);
 
       // Serialize
       const serializer = new XMLSerializer();
       this._transposedXml = serializer.serializeToString(doc);
 
       // Update title
+      const clefLabel = readingClef
+        ? ` — read in ${readingClef} clef`
+        : '';
       document.getElementById('transposeTargetTitle').textContent =
-        `Transposed for ${target.label}`;
+        `Sight-read for ${target.label}${clefLabel}`;
 
       // Render
       await this._renderTransposed(this._transposedXml);
@@ -592,7 +463,7 @@
 
   global.TransposeEngine = {
     INSTRUMENTS,
-    transpose,
+    sightTranspose,
     loadFile,
     detectSourceOffset,
   };
