@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/soundfont-player/dist/soundfont-player.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.6/build/opensheetmusicdisplay.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -124,6 +125,7 @@
     <button class="tab-btn" data-tab="modes">Modes</button>
     <button class="tab-btn" data-tab="prog">Progressions</button>
     <button class="tab-btn" data-tab="cof">Circle of Fifths</button>
+    <button class="tab-btn" data-tab="transpose">Transpose</button>
   </div>
 
   <!-- Tab: Arpeggio -->
@@ -189,6 +191,11 @@
     <div id="cofContainer"></div>
   </div>
 
+  <!-- Tab: Transpose -->
+  <div class="tab-panel" id="tab-transpose">
+    <div id="transposeContent"></div>
+  </div>
+
 </main>
 
 <!-- Listen modal -->
@@ -236,5 +243,6 @@
 
 <script src="script.js?v=27"></script>
 <script src="music-staff-engine.js?v=3"></script>
+<script src="transpose-engine.js?v=1"></script>
 </body>
 </html>

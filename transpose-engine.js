@@ -1,0 +1,600 @@
+/**
+ * TransposeEngine — v1.0
+ * Module de transposition à vue pour Aeris (Scales & Arpeggios)
+ *
+ * Charge un fichier .musicxml ou .mxl, détecte l'instrument source,
+ * transpose pour un instrument cible, affiche original + transposé via OSMD.
+ *
+ * Dépendances globales :
+ *   opensheetmusicdisplay (OSMD), JSZip,
+ *   spellNote, LETTER_NAMES, LETTER_CHROMATIC (depuis script.js),
+ *   ensureInstrumentLoaded, playNote, getAudioCtx, midiToName,
+ *   currentInstrument (depuis script.js)
+ */
+
+(function (global) {
+  'use strict';
+
+  // ── Instrument definitions ──────────────────────────────────────────────────
+
+  const INSTRUMENTS = [
+    { offset:  0, label: 'Concert Pitch (C)',      clef: 'treble', sf: 'flute',        group: 'C'  },
+    { offset:  0, label: 'Flute',                  clef: 'treble', sf: 'flute',        group: 'C'  },
+    { offset:  0, label: 'Oboe',                   clef: 'treble', sf: 'oboe',         group: 'C'  },
+    { offset:  0, label: 'Bassoon',                clef: 'bass',   sf: 'bassoon',      group: 'C'  },
+    { offset:  0, label: 'Tuba (C)',               clef: 'bass',   sf: 'tuba',         group: 'C'  },
+    { offset: -2, label: 'Clarinet (B\u266D)',     clef: 'treble', sf: 'clarinet',     group: 'Bb' },
+    { offset: -2, label: 'Trumpet (B\u266D)',      clef: 'treble', sf: 'trumpet',      group: 'Bb' },
+    { offset: -2, label: 'Tenor Sax (B\u266D)',    clef: 'treble', sf: 'tenor_sax',    group: 'Bb' },
+    { offset: -2, label: 'Trombone (B\u266D treble)', clef: 'treble', sf: 'trombone',  group: 'Bb' },
+    { offset: -2, label: 'Trombone (bass clef)',   clef: 'bass',   sf: 'trombone',     group: 'Bb' },
+    { offset: -9, label: 'Alto Sax (E\u266D)',     clef: 'treble', sf: 'alto_sax',     group: 'Eb' },
+    { offset: -9, label: 'Baritone Sax (E\u266D)', clef: 'treble', sf: 'baritone_sax', group: 'Eb' },
+    { offset: -7, label: 'French Horn (F)',        clef: 'treble', sf: 'french_horn',  group: 'F'  },
+  ];
+
+  const CLEF_CONFIG = {
+    treble: { sign: 'G', line: 2 },
+    bass:   { sign: 'F', line: 4 },
+    alto:   { sign: 'C', line: 3 },
+    tenor:  { sign: 'C', line: 4 },
+  };
+
+  const STEP_SEMITONE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+  // Circle-of-fifths shift per semitone: semitone n → fifths shift
+  // +1 semi = +7 fifths (mod 12), wrapped to [-5,6]
+  const SEMI_TO_FIFTHS_SHIFT = [0, 7, 2, -3, 4, -1, 6, 1, -4, 3, -2, 5];
+
+  // ── File loading ────────────────────────────────────────────────────────────
+
+  /**
+   * Read an uploaded file. Supports .musicxml/.xml (plain) and .mxl (ZIP).
+   * Returns the MusicXML string.
+   */
+  async function loadFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    if (ext === 'mxl') {
+      if (typeof JSZip === 'undefined') throw new Error('JSZip not loaded — cannot open .mxl files');
+      const buf = await file.arrayBuffer();
+      const zip = await JSZip.loadAsync(buf);
+
+      // Find the root .xml file via META-INF/container.xml or fallback
+      let xmlFileName = null;
+      const containerFile = zip.file('META-INF/container.xml');
+      if (containerFile) {
+        const containerXml = await containerFile.async('string');
+        const match = containerXml.match(/full-path="([^"]+\.xml)"/i);
+        if (match) xmlFileName = match[1];
+      }
+      if (!xmlFileName) {
+        // Fallback: find the first .xml file that isn't in META-INF
+        for (const name of Object.keys(zip.files)) {
+          if (name.endsWith('.xml') && !name.startsWith('META-INF')) {
+            xmlFileName = name;
+            break;
+          }
+        }
+      }
+      if (!xmlFileName) throw new Error('No MusicXML file found inside .mxl archive');
+      return await zip.file(xmlFileName).async('string');
+    }
+
+    // Plain .musicxml / .xml
+    return await file.text();
+  }
+
+  // ── Source detection ─────────────────────────────────────────────────────────
+
+  /**
+   * Detect source instrument offset from MusicXML <transpose> element.
+   * Returns { offset, detected } or { offset: 0, detected: false }.
+   */
+  function detectSourceOffset(xmlDoc) {
+    const transposeEl = xmlDoc.querySelector('part > measure > attributes > transpose');
+    if (transposeEl) {
+      const chromatic = transposeEl.querySelector('chromatic');
+      if (chromatic) {
+        return { offset: -parseInt(chromatic.textContent), detected: true };
+      }
+    }
+    return { offset: 0, detected: false };
+  }
+
+  // ── Transposition core ──────────────────────────────────────────────────────
+
+  /**
+   * Transpose a MusicXML DOM in-place.
+   * @param {Document} xmlDoc     — parsed MusicXML DOM
+   * @param {number}   semitoneShift — semitones to shift (positive = up)
+   * @param {string}   targetClef — 'treble'|'bass'|'alto'|'tenor'
+   * @param {number}   targetOffset — target instrument offset for <transpose> element
+   */
+  function transpose(xmlDoc, semitoneShift, targetClef, targetOffset) {
+    if (semitoneShift === 0 && targetClef === null) return;
+
+    // 1. Compute new key fifths for context-aware spelling
+    const firstKey = xmlDoc.querySelector('part > measure > attributes > key > fifths');
+    const baseKeyFifths = firstKey ? parseInt(firstKey.textContent) : 0;
+    const fifthsShift = SEMI_TO_FIFTHS_SHIFT[((semitoneShift % 12) + 12) % 12];
+
+    // 2. Update all <key> elements
+    const keyEls = xmlDoc.querySelectorAll('fifths');
+    keyEls.forEach(el => {
+      const old = parseInt(el.textContent);
+      let nf = old + fifthsShift;
+      while (nf > 6)  nf -= 12;
+      while (nf < -6) nf += 12;
+      el.textContent = nf;
+    });
+
+    // 3. Compute target key fifths for spelling context
+    let targetKeyFifths = baseKeyFifths + fifthsShift;
+    while (targetKeyFifths > 6)  targetKeyFifths -= 12;
+    while (targetKeyFifths < -6) targetKeyFifths += 12;
+
+    // Build a spelling helper: for a given key, which letter index maps best?
+    // Use the circle of fifths to determine the "root" and derive letter preferences
+    const keyRootIdx = _fifthsToRootIdx(targetKeyFifths);
+    const keyRootLetterIdx = _bestLetterIdx(keyRootIdx, targetKeyFifths >= 0);
+
+    // 4. Transpose all <pitch> elements
+    const pitchEls = xmlDoc.querySelectorAll('pitch');
+    pitchEls.forEach(pitchEl => {
+      const stepEl   = pitchEl.querySelector('step');
+      let   alterEl  = pitchEl.querySelector('alter');
+      const octaveEl = pitchEl.querySelector('octave');
+
+      const step   = stepEl.textContent.trim();
+      const alter  = alterEl ? parseFloat(alterEl.textContent) : 0;
+      const octave = parseInt(octaveEl.textContent);
+
+      // Convert to absolute semitone
+      const absSemi = STEP_SEMITONE[step] + alter + octave * 12;
+      const newSemi = absSemi + semitoneShift;
+
+      // New octave and pitch class
+      const newOctave = Math.floor(newSemi / 12);
+      const newPc = ((newSemi % 12) + 12) % 12;
+
+      // Spell using diatonic context from key signature
+      const degree = _pcToDegree(newPc, keyRootIdx);
+      const letterIdx = keyRootLetterIdx + degree;
+      const spelled = spellNote(newPc, letterIdx);
+      const parsed = _parseSpelled(spelled);
+
+      stepEl.textContent = parsed.step;
+
+      // Correct octave for enharmonics (Cb, B#)
+      const correctedOctave = Math.floor((newSemi - parsed.alter) / 12);
+      octaveEl.textContent = correctedOctave;
+
+      if (parsed.alter !== 0) {
+        if (alterEl) {
+          alterEl.textContent = parsed.alter;
+        } else {
+          alterEl = xmlDoc.createElement('alter');
+          alterEl.textContent = parsed.alter;
+          pitchEl.insertBefore(alterEl, octaveEl);
+        }
+      } else if (alterEl) {
+        alterEl.remove();
+      }
+    });
+
+    // 5. Remove stale <accidental> elements — let OSMD recalculate
+    const accidentals = xmlDoc.querySelectorAll('accidental');
+    accidentals.forEach(el => el.remove());
+
+    // 6. Update <clef> elements
+    if (targetClef) {
+      const clefCfg = CLEF_CONFIG[targetClef];
+      if (clefCfg) {
+        const clefEls = xmlDoc.querySelectorAll('clef');
+        clefEls.forEach(clefEl => {
+          const signEl = clefEl.querySelector('sign');
+          const lineEl = clefEl.querySelector('line');
+          if (signEl) signEl.textContent = clefCfg.sign;
+          if (lineEl) lineEl.textContent = clefCfg.line;
+        });
+      }
+    }
+
+    // 7. Update or remove <transpose> elements
+    const transposeEls = xmlDoc.querySelectorAll('transpose');
+    transposeEls.forEach(el => {
+      if (targetOffset === 0) {
+        el.remove();
+      } else {
+        let chrEl = el.querySelector('chromatic');
+        let diaEl = el.querySelector('diatonic');
+        const chrVal = -targetOffset;
+        if (chrEl) {
+          chrEl.textContent = chrVal;
+        } else {
+          chrEl = xmlDoc.createElement('chromatic');
+          chrEl.textContent = chrVal;
+          el.appendChild(chrEl);
+        }
+        // Approximate diatonic from chromatic
+        const diaVal = _chromaticToDiatonic(chrVal);
+        if (diaEl) {
+          diaEl.textContent = diaVal;
+        } else {
+          diaEl = xmlDoc.createElement('diatonic');
+          diaEl.textContent = diaVal;
+          el.insertBefore(diaEl, chrEl);
+        }
+      }
+    });
+
+    // If target is transposing and no <transpose> existed, add one
+    if (targetOffset !== 0 && transposeEls.length === 0) {
+      const attrs = xmlDoc.querySelector('part > measure > attributes');
+      if (attrs) {
+        const trEl = xmlDoc.createElement('transpose');
+        const diaEl = xmlDoc.createElement('diatonic');
+        diaEl.textContent = _chromaticToDiatonic(-targetOffset);
+        const chrEl = xmlDoc.createElement('chromatic');
+        chrEl.textContent = -targetOffset;
+        trEl.appendChild(diaEl);
+        trEl.appendChild(chrEl);
+        attrs.appendChild(trEl);
+      }
+    }
+  }
+
+  // ── Spelling helpers ────────────────────────────────────────────────────────
+
+  /** Map fifths count to chromatic root index */
+  function _fifthsToRootIdx(fifths) {
+    // fifths on circle: 0=C, 1=G, 2=D, -1=F, -2=Bb, etc.
+    return ((fifths * 7) % 12 + 12) % 12;
+  }
+
+  /** Best letter index for a root, preferring sharps or flats */
+  function _bestLetterIdx(rootIdx, preferSharp) {
+    const SHARP_MAP = { 0:0, 1:0, 2:1, 3:1, 4:2, 5:3, 6:3, 7:4, 8:4, 9:5, 10:5, 11:6 };
+    const FLAT_MAP  = { 0:0, 1:1, 2:1, 3:2, 4:2, 5:3, 6:4, 7:4, 8:5, 9:5, 10:6, 11:6 };
+    return preferSharp ? SHARP_MAP[rootIdx] : FLAT_MAP[rootIdx];
+  }
+
+  /** Find scale degree (0–6) for a pitch class relative to a major-scale root */
+  function _pcToDegree(pc, rootIdx) {
+    const MAJOR_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
+    const rel = ((pc - rootIdx) % 12 + 12) % 12;
+    // Find closest degree
+    let bestDeg = 0, bestDist = 99;
+    for (let d = 0; d < 7; d++) {
+      const dist = Math.min(
+        Math.abs(rel - MAJOR_INTERVALS[d]),
+        12 - Math.abs(rel - MAJOR_INTERVALS[d])
+      );
+      if (dist < bestDist) { bestDist = dist; bestDeg = d; }
+    }
+    return bestDeg;
+  }
+
+  /** Parse a spelled note ("F#", "Bb", "C×", "B♭♭") → { step, alter } */
+  function _parseSpelled(name) {
+    const step = name[0];
+    const acc  = name.slice(1);
+    const alter = acc === '#'  ?  1
+                : acc === 'b'  ? -1
+                : acc === '\u00D7' || acc === '×' ?  2
+                : acc.includes('\u266D\u266D')     ? -2
+                : 0;
+    return { step, alter };
+  }
+
+  /** Approximate diatonic interval from chromatic interval */
+  function _chromaticToDiatonic(chromatic) {
+    const abs = Math.abs(chromatic);
+    const CHROM_TO_DIA = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6];
+    const dia = CHROM_TO_DIA[abs % 12] + Math.floor(abs / 12) * 7;
+    return chromatic >= 0 ? dia : -dia;
+  }
+
+  // ── UI Controller ───────────────────────────────────────────────────────────
+
+  class TransposeUI {
+    constructor() {
+      this._originalXml  = null;  // string
+      this._originalDoc  = null;  // DOM
+      this._transposedXml = null;
+      this._sourceOffset = 0;
+      this._osmdOriginal = null;
+      this._osmdTransposed = null;
+      this._injected = false;
+    }
+
+    init() {
+      const container = document.getElementById('transposeContent');
+      if (!container) return;
+      this._buildUI(container);
+      this._bindEvents();
+    }
+
+    _buildUI(container) {
+      container.innerHTML = `
+        <div class="transpose-controls">
+          <div class="transpose-upload-row">
+            <label class="transpose-upload-btn" for="transposeFileInput">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Load .musicxml / .mxl
+            </label>
+            <input type="file" id="transposeFileInput" accept=".musicxml,.xml,.mxl" style="display:none">
+            <span class="transpose-filename" id="transposeFilename">No file loaded</span>
+          </div>
+
+          <div class="transpose-selects-row">
+            <div class="transpose-select-group">
+              <span class="transpose-label">Source</span>
+              <select class="transpose-select" id="transposeSourceSelect">
+                ${INSTRUMENTS.map((inst, i) => `<option value="${i}">${inst.label}</option>`).join('')}
+              </select>
+            </div>
+            <div class="transpose-arrow">→</div>
+            <div class="transpose-select-group">
+              <span class="transpose-label">Target</span>
+              <select class="transpose-select" id="transposeTargetSelect">
+                ${INSTRUMENTS.map((inst, i) => `<option value="${i}"${i === 5 ? ' selected' : ''}>${inst.label}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="transpose-scores" id="transposeScores" style="display:none">
+          <div class="transpose-section">
+            <div class="transpose-section-header" id="transposeOriginalHeader">
+              <span class="transpose-section-chevron">▼</span>
+              <span>Original</span>
+            </div>
+            <div class="transpose-osmd-wrap" id="transposeOriginalWrap">
+              <div id="transposeOriginalOsmd"></div>
+            </div>
+          </div>
+
+          <div class="transpose-section transpose-section-main">
+            <div class="transpose-section-header">
+              <span id="transposeTargetTitle">Transposed</span>
+            </div>
+            <div class="transpose-osmd-wrap">
+              <div id="transposeTransposedOsmd"></div>
+            </div>
+          </div>
+
+          <div class="transpose-actions">
+            <button class="transpose-action-btn" id="transposeExportBtn" title="Download transposed .musicxml">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Export
+            </button>
+          </div>
+        </div>
+
+        <div class="transpose-empty" id="transposeEmpty">
+          <p>Load a MusicXML file to get started.</p>
+          <p class="transpose-hint">Supports .musicxml, .xml, and .mxl (compressed) formats.</p>
+        </div>
+      `;
+    }
+
+    _bindEvents() {
+      document.getElementById('transposeFileInput')
+        .addEventListener('change', e => this._onFileSelected(e));
+
+      document.getElementById('transposeSourceSelect')
+        .addEventListener('change', () => this._onSettingsChange());
+
+      document.getElementById('transposeTargetSelect')
+        .addEventListener('change', () => this._onSettingsChange());
+
+      document.getElementById('transposeOriginalHeader')
+        .addEventListener('click', () => this._toggleOriginal());
+
+      document.getElementById('transposeExportBtn')
+        .addEventListener('click', () => this._export());
+
+      // Drag & drop on the whole tab
+      const container = document.getElementById('transposeContent');
+      container.addEventListener('dragover', e => { e.preventDefault(); container.classList.add('drag-over'); });
+      container.addEventListener('dragleave', () => container.classList.remove('drag-over'));
+      container.addEventListener('drop', e => {
+        e.preventDefault();
+        container.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) this._handleFile(file);
+      });
+    }
+
+    async _onFileSelected(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      await this._handleFile(file);
+    }
+
+    async _handleFile(file) {
+      document.getElementById('transposeFilename').textContent = file.name;
+
+      try {
+        const xmlString = await loadFile(file);
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xmlString, 'application/xml');
+
+        // Check for parse errors
+        if (doc.querySelector('parsererror')) {
+          throw new Error('Invalid MusicXML file');
+        }
+
+        this._originalXml = xmlString;
+        this._originalDoc = doc;
+
+        // Detect source
+        const { offset, detected } = detectSourceOffset(doc);
+        this._sourceOffset = offset;
+
+        // Auto-select source instrument
+        if (detected) {
+          const matchIdx = INSTRUMENTS.findIndex(inst => inst.offset === offset);
+          if (matchIdx >= 0) {
+            document.getElementById('transposeSourceSelect').value = matchIdx;
+          }
+        }
+
+        // Show scores area
+        document.getElementById('transposeScores').style.display = '';
+        document.getElementById('transposeEmpty').style.display = 'none';
+
+        // Render original
+        await this._renderOriginal(xmlString);
+
+        // Transpose & render
+        await this._transposeAndRender();
+
+      } catch (err) {
+        console.error('TransposeEngine: load error', err);
+        document.getElementById('transposeFilename').textContent = 'Error: ' + err.message;
+      }
+    }
+
+    async _renderOriginal(xmlString) {
+      if (!this._osmdOriginal) {
+        const OSMD = global.opensheetmusicdisplay?.OpenSheetMusicDisplay;
+        if (!OSMD) return;
+        this._osmdOriginal = new OSMD('transposeOriginalOsmd', {
+          backend: 'svg',
+          autoResize: false,
+          drawTitle: true,
+          drawSubtitle: false,
+          drawComposer: true,
+          drawPartNames: false,
+          drawPartAbbreviations: false,
+          drawingParameters: 'default',
+          defaultColorNotehead: '#333',
+          defaultColorStem: '#333',
+          defaultColorRest: '#555',
+        });
+      }
+      const container = document.getElementById('transposeOriginalOsmd');
+      if (container) container.innerHTML = '';
+      await this._osmdOriginal.load(xmlString);
+      this._osmdOriginal.render();
+    }
+
+    async _renderTransposed(xmlString) {
+      if (!this._osmdTransposed) {
+        const OSMD = global.opensheetmusicdisplay?.OpenSheetMusicDisplay;
+        if (!OSMD) return;
+        this._osmdTransposed = new OSMD('transposeTransposedOsmd', {
+          backend: 'svg',
+          autoResize: false,
+          drawTitle: false,
+          drawSubtitle: false,
+          drawComposer: false,
+          drawPartNames: false,
+          drawPartAbbreviations: false,
+          drawingParameters: 'default',
+          defaultColorNotehead: '#1a1a1a',
+          defaultColorStem: '#1a1a1a',
+          defaultColorRest: '#333',
+        });
+      }
+      const container = document.getElementById('transposeTransposedOsmd');
+      if (container) container.innerHTML = '';
+      await this._osmdTransposed.load(xmlString);
+      this._osmdTransposed.render();
+    }
+
+    async _transposeAndRender() {
+      if (!this._originalXml) return;
+
+      const sourceIdx = parseInt(document.getElementById('transposeSourceSelect').value);
+      const targetIdx = parseInt(document.getElementById('transposeTargetSelect').value);
+      const source = INSTRUMENTS[sourceIdx];
+      const target = INSTRUMENTS[targetIdx];
+
+      const semitoneShift = source.offset - target.offset;
+
+      // Clone the original DOM
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(this._originalXml, 'application/xml');
+
+      // Transpose
+      transpose(doc, semitoneShift, target.clef, target.offset);
+
+      // Serialize
+      const serializer = new XMLSerializer();
+      this._transposedXml = serializer.serializeToString(doc);
+
+      // Update title
+      document.getElementById('transposeTargetTitle').textContent =
+        `Transposed for ${target.label}`;
+
+      // Render
+      await this._renderTransposed(this._transposedXml);
+    }
+
+    async _onSettingsChange() {
+      if (!this._originalXml) return;
+      await this._transposeAndRender();
+    }
+
+    _toggleOriginal() {
+      const wrap = document.getElementById('transposeOriginalWrap');
+      const chevron = document.querySelector('#transposeOriginalHeader .transpose-section-chevron');
+      const collapsed = wrap.style.display === 'none';
+      wrap.style.display = collapsed ? '' : 'none';
+      chevron.textContent = collapsed ? '▼' : '▶';
+      // Re-render OSMD if expanding (fixes stale width)
+      if (collapsed && this._osmdOriginal) {
+        try { this._osmdOriginal.render(); } catch (_) {}
+      }
+    }
+
+    _export() {
+      if (!this._transposedXml) return;
+      const targetIdx = parseInt(document.getElementById('transposeTargetSelect').value);
+      const target = INSTRUMENTS[targetIdx];
+      const filename = (document.getElementById('transposeFilename').textContent || 'score')
+        .replace(/\.[^.]+$/, '') + '_' + target.label.replace(/[^a-zA-Z0-9]/g, '_');
+
+      const blob = new Blob([this._transposedXml], { type: 'application/vnd.recordare.musicxml+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename + '.musicxml';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+
+  const _ui = new TransposeUI();
+
+  // Init when DOM ready (tab may not exist yet if script loads early)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => _ui.init());
+  } else {
+    _ui.init();
+  }
+
+  global.TransposeEngine = {
+    INSTRUMENTS,
+    transpose,
+    loadFile,
+    detectSourceOffset,
+  };
+
+})(window);

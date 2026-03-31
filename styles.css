@@ -1676,3 +1676,177 @@ main {
   .modes-action-pill { width: 30px; height: 30px; }
   .modes-interval-table { font-size: 0.7rem; }
 }
+
+/* ─── Transpose Tab ───────────────────────────────────────────────────────── */
+
+.transpose-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.transpose-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.transpose-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  background: var(--violet-bg);
+  border: 1px solid var(--violet-border);
+  border-radius: 8px;
+  color: var(--violet);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.transpose-upload-btn:hover {
+  background: var(--violet-dim);
+  border-color: var(--violet);
+  color: #fff;
+}
+
+.transpose-filename {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.transpose-selects-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.transpose-select-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.transpose-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.transpose-select {
+  padding: 0.45rem 0.7rem;
+  background: var(--surface2);
+  border: 1px solid var(--violet-border);
+  border-radius: 6px;
+  color: var(--cream);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.82rem;
+  min-width: 200px;
+}
+
+.transpose-arrow {
+  color: var(--violet);
+  font-size: 1.4rem;
+  margin-top: 1rem;
+}
+
+.transpose-scores {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.transpose-section {
+  border: 1px solid var(--surface3);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.transpose-section-main {
+  border-color: var(--violet-border);
+}
+
+.transpose-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: var(--surface2);
+  font-size: 0.85rem;
+  color: var(--cream);
+  cursor: pointer;
+  user-select: none;
+}
+
+.transpose-section-chevron {
+  font-size: 0.7rem;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+
+.transpose-osmd-wrap {
+  background: #b8b8b8;
+  padding: 1rem;
+  min-height: 120px;
+}
+
+.transpose-osmd-wrap > div {
+  background: #b8b8b8;
+}
+
+.transpose-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.transpose-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface2);
+  border: 1px solid var(--violet-border);
+  border-radius: 6px;
+  color: var(--violet);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.transpose-action-btn:hover {
+  background: var(--violet-dim);
+  color: #fff;
+}
+
+.transpose-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--muted);
+}
+.transpose-empty p:first-child {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+.transpose-hint {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+#transposeContent.drag-over {
+  outline: 2px dashed var(--violet);
+  outline-offset: -4px;
+  border-radius: 10px;
+}
+
+@media (max-width: 600px) {
+  .transpose-selects-row { flex-direction: column; align-items: stretch; }
+  .transpose-arrow { display: none; }
+  .transpose-select { min-width: unset; width: 100%; }
+}
