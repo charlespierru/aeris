@@ -337,7 +337,7 @@
             </div>
           </div>
 
-          <div class="transpose-actions">
+          <div class="transpose-actions" id="transposeActions">
             <button class="transpose-action-btn" id="transposeExportBtn" title="Download transposed .musicxml">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -550,11 +550,15 @@
       }
       box.textContent = msg;
       box.style.display = '';
+      const actions = document.getElementById('transposeActions');
+      if (actions) actions.style.display = 'none';
     }
 
     _hideError() {
       const box = document.getElementById('transposeErrorBox');
       if (box) box.style.display = 'none';
+      const actions = document.getElementById('transposeActions');
+      if (actions) actions.style.display = '';
     }
 
     _export() {
@@ -574,6 +578,7 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
+
   }
 
   // ── Init ────────────────────────────────────────────────────────────────────
